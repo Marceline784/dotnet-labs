@@ -1,0 +1,41 @@
+[
+  {
+    "_id": {
+      "$oid": "66f0c5a1b2c3d4e5f6000001"
+    },
+    "outfitId": 1,
+    "userId": 1,
+    "score": {
+      "$numberInt": "5"
+    },
+    "createdAt": {
+      "$date": "2026-10-08T18:31:00Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "66f0c5a1b2c3d4e5f6000002"
+    },
+    "outfitId": 1,
+    "userId": 2,
+    "score": {
+      "$numberInt": "4"
+    },
+    "createdAt": {
+      "$date": "2026-10-08T19:00:00Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "66f0c5a1b2c3d4e5f6000003"
+    },
+    "outfitId": 5,
+    "userId": 1,
+    "score": {
+      "$numberInt": "3"
+    },
+    "createdAt": {
+      "$date": "2026-10-09T15:41:00Z"
+    }
+  }
+]

@@ -1,0 +1,111 @@
+// ERD Проєкту №1: вставити на https://dbdiagram.io/d
+// Зв'язки: 1:1 (UserProfiles, WeatherSnapshots), 1:N (Users->Recommendations, Recommendations->Outfits), M:N (Outfits<->WardrobeItems через OutfitItems; Users<->Slots через UserSlotPreferences)
+
+Table Users {
+  Id bigint [pk, increment]
+  Email nvarchar(256) [unique, not null]
+  DisplayName nvarchar(100) [not null]
+  CreatedAt datetime2
+  IsDeleted bit
+  RowVersion rowversion
+}
+
+Table UserProfiles {
+  UserId bigint [pk, ref: - Users.Id, note: '1:1 (FK = PK)']
+  City nvarchar(100) [not null]
+  ColdSensitivity decimal(3,1) [note: 'CHECK -3..3']
+  StylePreference nvarchar(30)
+  RowVersion rowversion
+}
+
+Table Slots {
+  Code nvarchar(20) [pk, note: 'Top, Bottom, Shoes, Bag, Accessory']
+  Name nvarchar(50)
+  SortOrder tinyint [unique]
+}
+
+Table UserSlotPreferences {
+  UserId bigint [ref: > Users.Id]
+  SlotCode nvarchar(20) [ref: > Slots.Code]
+  IsEnabled bit [note: 'власне поле M:N']
+  indexes { (UserId, SlotCode) [pk] }
+}
+
+Table WardrobeItems {
+  Id bigint [pk, note: 'Id з БД Гардероба, КОПІЯ для читання']
+  OwnerUserId bigint [ref: > Users.Id]
+  Name nvarchar(200)
+  SlotCode nvarchar(20) [ref: > Slots.Code]
+  Layer nvarchar(10) [note: 'Base | Mid | Outer']
+  Warmth tinyint
+  MinTemp smallint
+  MaxTemp smallint
+  WaterResistance tinyint
+  IsAvailable bit
+  SourceUpdatedAt datetime2
+}
+
+Table Recommendations {
+  Id bigint [pk, increment]
+  UserId bigint [ref: > Users.Id]
+  ForDate date
+  IsDeleted bit
+  RowVersion rowversion
+  indexes { (UserId, ForDate) [name: 'IX_Recommendations_User_Date'] }
+}
+
+Table WeatherSnapshots {
+  RecommendationId bigint [pk, ref: - Recommendations.Id, note: '1:1']
+  City nvarchar(100)
+  TempMin decimal(4,1)
+  TempMax decimal(4,1)
+  FeelsLikeMin decimal(4,1)
+  FeelsLikeMax decimal(4,1)
+  PrecipProbability tinyint
+  Condition nvarchar(20)
+}
+
+Table Outfits {
+  Id bigint [pk, increment]
+  RecommendationId bigint [ref: > Recommendations.Id]
+  CarouselPosition tinyint
+  FitScore decimal(5,2)
+  ItemsHash char(64)
+  Status nvarchar(20) [note: 'Generated|Chosen|Worn|Reviewed|Cancelled']
+  RowVersion rowversion
+  indexes {
+    (RecommendationId, CarouselPosition) [unique]
+    (RecommendationId, ItemsHash) [unique]
+    ItemsHash
+  }
+}
+
+Table OutfitItems {
+  OutfitId bigint [ref: > Outfits.Id]
+  WardrobeItemId bigint [ref: > WardrobeItems.Id]
+  SlotCode nvarchar(20) [ref: > Slots.Code]
+  Layer nvarchar(10)
+  ItemName nvarchar(200) [note: 'ЗНІМОК, не оновлюється']
+  ImageUrl nvarchar(500) [note: 'ЗНІМОК, не оновлюється']
+  IsRemovable bit
+  indexes {
+    (OutfitId, WardrobeItemId) [pk]
+    (OutfitId, SlotCode, Layer) [unique]
+    WardrobeItemId
+  }
+}
+
+Table OutfitStatusTransitions {
+  FromStatus nvarchar(20)
+  ToStatus nvarchar(20)
+  indexes { (FromStatus, ToStatus) [pk] }
+}
+
+Table OutfitStatusHistory {
+  Id bigint [pk, increment]
+  OutfitId bigint [ref: > Outfits.Id]
+  FromStatus nvarchar(20)
+  ToStatus nvarchar(20)
+  ChangedAt datetime2
+  ChangedBy nvarchar(100)
+}

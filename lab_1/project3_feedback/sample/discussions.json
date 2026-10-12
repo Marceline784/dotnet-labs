@@ -1,0 +1,51 @@
+[
+  {
+    "_id": {
+      "$oid": "66f0c3a1b2c3d4e5f6000001"
+    },
+    "title": "Як носити шари восени",
+    "feedbackId": {
+      "$oid": "66f0c2a1b2c3d4e5f6000001"
+    },
+    "createdBy": {
+      "userId": 1,
+      "displayName": "Олена"
+    },
+    "tags": [
+      "шари",
+      "осінь"
+    ],
+    "messagesCount": {
+      "$numberInt": "3"
+    },
+    "lastMessageAt": {
+      "$date": "2026-10-09T09:00:00Z"
+    },
+    "createdAt": {
+      "$date": "2026-10-08T18:35:00Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "66f0c3a1b2c3d4e5f6000002"
+    },
+    "title": "Зимові черевики: що обрати",
+    "createdBy": {
+      "userId": 2,
+      "displayName": "Макс"
+    },
+    "tags": [
+      "зима",
+      "взуття"
+    ],
+    "messagesCount": {
+      "$numberInt": "1"
+    },
+    "lastMessageAt": {
+      "$date": "2026-10-09T10:00:00Z"
+    },
+    "createdAt": {
+      "$date": "2026-10-09T10:00:00Z"
+    }
+  }
+]

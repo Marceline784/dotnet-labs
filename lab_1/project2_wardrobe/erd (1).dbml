@@ -1,0 +1,49 @@
+// ERD Проєкту №2: вставити на https://dbdiagram.io/d
+// 1:1 WardrobeItems-ItemDetails; 1:N WardrobeItems->ItemImages; M:N WardrobeItems<->Categories через ItemCategories (поле AddedAt)
+
+Table WardrobeItems {
+  Id bigint [pk, increment]
+  OwnerUserId bigint [not null, note: 'посилання на Users з іншої БД, БЕЗ FK']
+  Name nvarchar(200) [not null]
+  SlotCode nvarchar(20) [note: 'Top|Bottom|Shoes|Bag|Accessory (CHECK)']
+  Layer nvarchar(10) [note: 'Base|Mid|Outer (CHECK)']
+  IsAvailable bit [note: 'false = у пранні']
+  CreatedAt datetime2
+  IsDeleted bit
+  RowVersion rowversion
+  indexes { (OwnerUserId, SlotCode) [name: 'IX_WardrobeItems_Owner_Slot'] }
+}
+
+Table ItemDetails {
+  ItemId bigint [pk, ref: - WardrobeItems.Id, note: '1:1 (FK = PK)']
+  Material nvarchar(100)
+  Color nvarchar(50)
+  Warmth tinyint [note: 'CHECK 1..5']
+  MinTemp smallint
+  MaxTemp smallint [note: 'CHECK MaxTemp > MinTemp']
+  WaterResistance tinyint [note: 'CHECK 0..3']
+  IsWindproof bit
+}
+
+Table ItemImages {
+  Id bigint [pk, increment]
+  ItemId bigint [ref: > WardrobeItems.Id, note: '1:N']
+  Url nvarchar(500)
+  IsPrimary bit [note: 'унікальний фільтрований індекс: одне головне фото']
+  SortOrder tinyint
+}
+
+Table Categories {
+  Id int [pk, increment]
+  Name nvarchar(100) [unique, not null]
+}
+
+Table ItemCategories {
+  ItemId bigint [ref: > WardrobeItems.Id]
+  CategoryId int [ref: > Categories.Id]
+  AddedAt datetime2 [note: 'власне поле M:N']
+  indexes {
+    (ItemId, CategoryId) [pk]
+    CategoryId
+  }
+}

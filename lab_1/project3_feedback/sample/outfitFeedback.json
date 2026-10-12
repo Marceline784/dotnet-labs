@@ -1,0 +1,128 @@
+[
+  {
+    "_id": {
+      "$oid": "66f0c2a1b2c3d4e5f6000001"
+    },
+    "outfitId": 1,
+    "author": {
+      "userId": 1,
+      "displayName": "Олена"
+    },
+    "feeling": "Comfortable",
+    "rating": {
+      "$numberInt": "5"
+    },
+    "text": "Вітровка і светр виручили: зранку прохолодно, а вдень светр лишився в рюкзаку.",
+    "photos": [
+      "fb1_a.jpg",
+      "fb1_b.jpg"
+    ],
+    "itemSnapshot": [
+      {
+        "itemId": 2,
+        "name": "Легка вітровка",
+        "slot": "Top"
+      },
+      {
+        "itemId": 3,
+        "name": "Вовняний светр",
+        "slot": "Top"
+      },
+      {
+        "itemId": 7,
+        "name": "Класичні джинси",
+        "slot": "Bottom"
+      },
+      {
+        "itemId": 10,
+        "name": "Білі кросівки",
+        "slot": "Shoes"
+      }
+    ],
+    "comments": [
+      {
+        "author": "Андрій",
+        "text": "Класний образ",
+        "createdAt": {
+          "$date": "2026-10-08T19:10:00Z"
+        }
+      },
+      {
+        "author": "Марія",
+        "text": "Де такий светр?",
+        "createdAt": {
+          "$date": "2026-10-08T20:02:00Z"
+        }
+      }
+    ],
+    "discussionId": {
+      "$oid": "66f0c3a1b2c3d4e5f6000001"
+    },
+    "createdAt": {
+      "$date": "2026-10-08T18:30:00Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "66f0c2a1b2c3d4e5f6000002"
+    },
+    "outfitId": 4,
+    "author": {
+      "userId": 2,
+      "displayName": "Макс"
+    },
+    "feeling": "Cold",
+    "text": "Було холодніше, ніж показувала погода.",
+    "temperatureNote": {
+      "felt": -2,
+      "forecast": 3
+    },
+    "createdAt": {
+      "$date": "2026-10-09T08:15:00Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "66f0c2a1b2c3d4e5f6000003"
+    },
+    "outfitId": 5,
+    "author": {
+      "userId": 1,
+      "displayName": "Олена"
+    },
+    "feeling": "Hot",
+    "rating": {
+      "$numberInt": "3"
+    },
+    "weatherAtTime": {
+      "condition": "Clear",
+      "feelsLike": 17
+    },
+    "itemNotes": [
+      {
+        "itemId": 3,
+        "note": "Светр завтеплий для 17 градусів"
+      }
+    ],
+    "createdAt": {
+      "$date": "2026-10-09T15:40:00Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "66f0c2a1b2c3d4e5f6000004"
+    },
+    "outfitId": 6,
+    "author": {
+      "userId": 2,
+      "displayName": "Макс"
+    },
+    "feeling": "Comfortable",
+    "rating": {
+      "$numberInt": "4"
+    },
+    "createdAt": {
+      "$date": "2026-10-09T17:00:00Z"
+    }
+  }
+]
