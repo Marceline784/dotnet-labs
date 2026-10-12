@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Services/" />
+  <Folder Name="/Services/Recommendations/">
+    <Project Path="Services/Recommendations/Recommendations.Api/Recommendations.Api.csproj" />
+    <Project Path="Services/Recommendations/Recommendations.Bll/Recommendations.Bll.csproj" />
+    <Project Path="Services/Recommendations/Recommendations.Dal/Recommendations.Dal.csproj" />
+    <Project Path="Services/Recommendations/Recommendations.Domain/Recommendations.Domain.csproj" />
+  </Folder>
+</Solution>
