@@ -1,0 +1,27 @@
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userprefs
+
+# .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+TestResults/
+*.nupkg
+
+# Logs
+*.log
+logs/
+
+# Secrets і локальні налаштування (не комітити паролі)
+appsettings.Local.json
+*.secrets.json
+
+# OS
+Thumbs.db
+.DS_Store
