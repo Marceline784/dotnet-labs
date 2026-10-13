@@ -99,4 +99,23 @@ public sealed class OutfitRepository : BaseDapperRepository<Outfit>, IOutfitRepo
                 commandType: CommandType.StoredProcedure,
                 cancellationToken: ct));
         });
+
+    public Task<IReadOnlyCollection<string>> GetRecentlyWornHashesAsync(long userId, DateTime forDate, int days,
+        CancellationToken ct = default) =>
+        GuardAsync<IReadOnlyCollection<string>>(async () =>
+        {
+            const string sql = @"
+                SELECT DISTINCT o.ItemsHash
+                FROM dbo.Outfits o
+                JOIN dbo.Recommendations r ON r.Id = o.RecommendationId
+                WHERE r.UserId = @UserId AND o.IsDeleted = 0
+                  AND o.Status IN (N'Worn', N'Reviewed')
+                  AND r.ForDate >= @From AND r.ForDate < @To";
+            await EnsureOpenAsync(ct);
+
+            var to = forDate.Date;
+            var rows = await Connection.QueryAsync<string>(new CommandDefinition(
+                sql, new { UserId = userId, From = to.AddDays(-days), To = to }, Transaction, cancellationToken: ct));
+            return rows.ToList();
+        });
 }
