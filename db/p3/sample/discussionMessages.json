@@ -1,0 +1,69 @@
+[
+  {
+    "_id": {
+      "$oid": "66f0c4a1b2c3d4e5f6000001"
+    },
+    "discussionId": {
+      "$oid": "66f0c3a1b2c3d4e5f6000001"
+    },
+    "author": {
+      "userId": 1,
+      "displayName": "Олена"
+    },
+    "text": "Беру светр на випадок похолодання, а вітровку зверху.",
+    "createdAt": {
+      "$date": "2026-10-08T18:36:00Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "66f0c4a1b2c3d4e5f6000002"
+    },
+    "discussionId": {
+      "$oid": "66f0c3a1b2c3d4e5f6000001"
+    },
+    "replyTo": {
+      "$oid": "66f0c4a1b2c3d4e5f6000001"
+    },
+    "author": {
+      "userId": 2,
+      "displayName": "Макс"
+    },
+    "text": "Я теж так роблю, зручно.",
+    "createdAt": {
+      "$date": "2026-10-08T21:00:00Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "66f0c4a1b2c3d4e5f6000003"
+    },
+    "discussionId": {
+      "$oid": "66f0c3a1b2c3d4e5f6000001"
+    },
+    "author": {
+      "userId": 1,
+      "displayName": "Олена"
+    },
+    "text": "Дякую за поради!",
+    "createdAt": {
+      "$date": "2026-10-09T09:00:00Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "66f0c4a1b2c3d4e5f6000004"
+    },
+    "discussionId": {
+      "$oid": "66f0c3a1b2c3d4e5f6000002"
+    },
+    "author": {
+      "userId": 2,
+      "displayName": "Макс"
+    },
+    "text": "Шукаю черевики з мембраною до -15.",
+    "createdAt": {
+      "$date": "2026-10-09T10:00:00Z"
+    }
+  }
+]

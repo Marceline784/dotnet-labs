@@ -1,0 +1,57 @@
+### Приклади запитів (Visual Studio / VS Code REST Client).
+### Порт подивіться в консолі після запуску ("Now listening on: http://localhost:XXXX") і змініть тут.
+@host = http://localhost:5080
+
+### 1. Усі користувачі
+GET {{host}}/api/users
+
+### 2. Створити користувача (ім'я зі спецсимволом не ламає SQL, бо всі значення параметризовані)
+POST {{host}}/api/users
+Content-Type: application/json
+
+{ "email": "obrien@example.com", "displayName": "O'Brien" }
+
+### 3. Профіль: місто й координати (погоду користувач не вводить)
+PUT {{host}}/api/users/1/profile
+Content-Type: application/json
+
+{ "city": "Тернопіль", "latitude": 49.553516, "longitude": 25.594767, "coldSensitivity": 1.0, "stylePreference": "Casual" }
+
+### 4. Гардероб користувача (за потреби ?slot=Top)
+GET {{host}}/api/users/1/wardrobe
+
+### 5. СТВОРИТИ РЕКОМЕНДАЦІЮ: погода автоматично, 3 образи для каруселі, одна транзакція
+POST {{host}}/api/recommendations
+Content-Type: application/json
+
+{ "userId": 1, "outfitCount": 3 }
+
+### 6. Рекомендація з образами (підставте Id з відповіді вище)
+GET {{host}}/api/recommendations/1
+
+### 7. Речі, які підходять під погоду цієї рекомендації
+GET {{host}}/api/recommendations/1/eligible-items
+
+### 8. Історія рекомендацій користувача
+GET {{host}}/api/users/1/recommendations?page=1&pageSize=10
+
+### 9. Обрати образ (Generated -> Chosen)
+POST {{host}}/api/outfits/1/status
+Content-Type: application/json
+
+{ "status": "Chosen" }
+
+### 10. ПЕРЕВІРКА 409: недопустимий перехід (образ ще не обрано, одягнути не можна)
+POST {{host}}/api/outfits/2/status
+Content-Type: application/json
+
+{ "status": "Worn" }
+
+### 11. ПЕРЕВІРКА 404: неіснуючий образ
+GET {{host}}/api/outfits/999999
+
+### 12. ПЕРЕВІРКА 400: некоректні дані (порожній email)
+POST {{host}}/api/users
+Content-Type: application/json
+
+{ "email": "", "displayName": "" }
