@@ -6,4 +6,5 @@
     <Project Path="Services/Recommendations/Recommendations.Dal/Recommendations.Dal.csproj" />
     <Project Path="Services/Recommendations/Recommendations.Domain/Recommendations.Domain.csproj" />
   </Folder>
+  <Project Path="Platform.AppHost/Platform.AppHost.csproj" />
 </Solution>
