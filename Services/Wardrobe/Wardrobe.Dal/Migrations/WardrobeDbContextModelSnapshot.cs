@@ -250,6 +250,11 @@ namespace Wardrobe.Dal.Migrations
 
                     b.HasIndex("Name");
 
+                    b.HasIndex("OwnerUserId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_WardrobeItems_Owner_Name")
+                        .HasFilter("[IsDeleted] = 0");
+
                     b.HasIndex("OwnerUserId", "Slot")
                         .HasDatabaseName("IX_WardrobeItems_Owner_Slot")
                         .HasFilter("[IsDeleted] = 0");

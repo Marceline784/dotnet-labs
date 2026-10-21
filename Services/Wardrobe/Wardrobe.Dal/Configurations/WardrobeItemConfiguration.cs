@@ -46,6 +46,12 @@ public class WardrobeItemConfiguration : IEntityTypeConfiguration<WardrobeItem>
             .HasFilter("[IsDeleted] = 0")
             .IncludeProperties(i => new { i.Name, i.IsAvailable });
 
+        // бізнес-унікальність: у користувача не може бути двох живих речей з однаковою назвою
+        builder.HasIndex(i => new { i.OwnerUserId, i.Name })
+            .IsUnique()
+            .HasDatabaseName("UX_WardrobeItems_Owner_Name")
+            .HasFilter("[IsDeleted] = 0");
+
         builder.HasIndex(i => i.Name);
 
         // 1:1 WardrobeItem <-> ItemDetail (FK є водночас PK залежної таблиці)
