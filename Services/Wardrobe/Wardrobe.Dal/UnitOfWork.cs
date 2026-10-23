@@ -5,7 +5,7 @@ namespace Wardrobe.Dal;
 
 /// <summary>
 /// Unit of Work над одним DbContext. Реєструється в DI як Scoped (один екземпляр на HTTP-запит).
-/// У eShop роль Unit of Work виконує сам DbContext; тут вона винесена явно, як вимагає лаба.
+/// Єдиний SaveChangesAsync зберігає всі зміни репозиторіїв в одній транзакції.
 /// </summary>
 public sealed class UnitOfWork : IUnitOfWork
 {
@@ -24,5 +24,5 @@ public sealed class UnitOfWork : IUnitOfWork
     public IItemCategoryRepository ItemCategories { get; }
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default)
-        => _context.SaveChangesAsync(ct);
+        => SaveChangesGuard.SaveAsync(_context, ct);
 }
