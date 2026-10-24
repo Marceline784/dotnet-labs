@@ -30,7 +30,7 @@ public class CreateWardrobeItemDtoValidator : AbstractValidator<CreateWardrobeIt
 
         // залежність між полями: шари Mid/Outer лише для верху
         RuleFor(x => x).Must(x => LayerRule.IsAllowed(x.Slot, x.Layer))
-            .WithName("Layer").WithMessage("Layers other than Base are allowed only for the Top slot");
+            .OverridePropertyName("Layer").WithMessage("Layers other than Base are allowed only for the Top slot");
 
         When(x => x.Detail is not null, () =>
             RuleFor(x => x.Detail!).SetValidator(new ItemDetailInputDtoValidator()));
@@ -49,7 +49,7 @@ public class UpdateWardrobeItemDtoValidator : AbstractValidator<UpdateWardrobeIt
             .WithMessage($"Layer must be one of: {string.Join(", ", Enum.GetNames<Layer>())}");
 
         RuleFor(x => x).Must(x => LayerRule.IsAllowed(x.Slot, x.Layer))
-            .WithName("Layer").WithMessage("Layers other than Base are allowed only for the Top slot");
+            .OverridePropertyName("Layer").WithMessage("Layers other than Base are allowed only for the Top slot");
     }
 }
 
@@ -71,7 +71,7 @@ public class WardrobeItemQueryValidator : AbstractValidator<WardrobeItemQuery>
         RuleFor(x => x.Page).GreaterThanOrEqualTo(1);
         RuleFor(x => x.PageSize).InclusiveBetween(1, 100);
         RuleFor(x => x.MinWarmth!.Value).InclusiveBetween((byte)1, (byte)5).When(x => x.MinWarmth is not null)
-            .WithName("MinWarmth");
+            .OverridePropertyName("MinWarmth");
         RuleFor(x => x.SortBy).Must(s => SortFields.Contains(s?.ToLowerInvariant()))
             .WithMessage($"SortBy must be one of: {string.Join(", ", SortFields)}");
         RuleFor(x => x.SortDir).Must(s => s is not null

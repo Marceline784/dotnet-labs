@@ -1,6 +1,63 @@
-@Wardrobe.Api_HostAddress = http://localhost:5100
+### Приклади запитів (Visual Studio / VS Code REST Client). Порт дивіться в консолі: "Now listening on: http://localhost:XXXX"
+@host = http://localhost:5090
 
-GET {{Wardrobe.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### 1. Список із пагінацією (page=2&pageSize=5): totalCount = усі записи, а не лише на сторінці
+GET {{host}}/api/wardrobe-items?page=2&pageSize=5
 
-###
+### 2. Фільтрація й сортування (виконуються в SQL)
+GET {{host}}/api/wardrobe-items?ownerUserId=1&slot=Top&search=wool&sortBy=name&sortDir=desc
+
+### 3. Фільтр за категорією та мінімальною теплотою
+GET {{host}}/api/wardrobe-items?category=Winter&minWarmth=4&sortBy=created&sortDir=desc
+
+### 4. EAGER LOADING: у логу ОДИН SQL-запит із JOIN-ами
+GET {{host}}/api/wardrobe-items/1
+
+### 5. EXPLICIT LOADING: у логу ДВА SQL-запити (категорія, потім її речі)
+GET {{host}}/api/categories/10
+
+### 6. Створити річ: 201 + Location
+POST {{host}}/api/wardrobe-items
+Content-Type: application/json
+
+{ "ownerUserId": 1, "name": "Linen shirt", "slot": "Top", "layer": "Base",
+  "detail": { "warmth": 1, "minTemp": 15, "maxTemp": 35, "waterResistance": 0, "isWindproof": false, "material": "Linen", "color": "White" } }
+
+### 7. ПОВТОРНЕ створення з тією самою назвою у того ж користувача: 409
+POST {{host}}/api/wardrobe-items
+Content-Type: application/json
+
+{ "ownerUserId": 1, "name": "Linen shirt", "slot": "Top", "layer": "Base" }
+
+### 8. 400 з переліком помилок по полях: порожня назва, невідомий слот
+POST {{host}}/api/wardrobe-items
+Content-Type: application/json
+
+{ "ownerUserId": 1, "name": "", "slot": "Hat", "layer": "Base" }
+
+### 9. 400 від FluentValidation: шар Outer для взуття
+POST {{host}}/api/wardrobe-items
+Content-Type: application/json
+
+{ "ownerUserId": 1, "name": "Weird boots", "slot": "Shoes", "layer": "Outer" }
+
+### 10. 404 у форматі ProblemDetails
+GET {{host}}/api/wardrobe-items/999999
+
+### 11. Відправити в прання (200), повторно (409)
+POST {{host}}/api/wardrobe-items/2/laundry
+
+### 12. Речі користувача в пранні (друга специфікація)
+GET {{host}}/api/users/1/laundry
+
+### 13. M:N: речі категорії, додані за останні 30 днів (проміжна сутність і поле AddedAt)
+GET {{host}}/api/wardrobe-items/recently-added?category=Winter&days=30
+
+### 14. Додати річ у категорію (M:N); повторно: 409
+POST {{host}}/api/wardrobe-items/12/categories
+Content-Type: application/json
+
+{ "categoryId": 11 }
+
+### 15. Некоректні параметри запиту (pageSize > 100): 400
+GET {{host}}/api/wardrobe-items?page=0&pageSize=500&sortBy=weight
