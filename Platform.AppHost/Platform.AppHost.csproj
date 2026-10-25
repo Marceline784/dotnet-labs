@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Services\Recommendations\Recommendations.Api\Recommendations.Api.csproj" />
+    <ProjectReference Include="..\Services\Wardrobe\Wardrobe.Api\Wardrobe.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

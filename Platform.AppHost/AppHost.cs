@@ -5,17 +5,19 @@ using Platform.AppHost;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// ---- База даних: SQL Server у контейнері (потрібен запущений Docker Desktop) ----
+// ---- Один SQL Server у контейнері на всю платформу (потрібен запущений Docker Desktop).
+//      У ньому дві ОКРЕМІ бази: кожен сервіс має власну БД, спільних таблиць немає. ----
 var sql = builder.AddSqlServer("sql");
 
-// Ім'я ресурсу "RecommendationsDb" збігається з ім'ям рядка підключення в Recommendations.Api
-// (GetConnectionString("RecommendationsDb")), тому Aspire передає рядок у API сам
-// через змінну оточення ConnectionStrings__RecommendationsDb, і код API змінювати не треба.
-// Друге значення, це реальна назва бази з Лаб. 01.
-var db = sql.AddDatabase("RecommendationsDb", "OutfitRecommendationsDb");
+// Сервіс «Рекомендації» (Лаб. 02): ім'я ресурсу збігається з GetConnectionString("RecommendationsDb").
+var recommendationsDb = sql.AddDatabase("RecommendationsDb", "OutfitRecommendationsDb");
 
-// Контейнер стартує порожнім: застосовуємо скрипти з Лаб. 01 (db/p1). Скрипти ідемпотентні,
-// тому повторний запуск не створює дублікатів. Обробник виконується, коли SQL Server готовий приймати з'єднання.
+// Сервіс «Гардероб» (Лаб. 03, EF Core): ім'я ресурсу збігається з GetConnectionString("WardrobeDb").
+// Схему створює сам сервіс при старті (міграції EF Core, потім ідемпотентний сідінг): скрипти не потрібні.
+var wardrobeDb = sql.AddDatabase("WardrobeDb", "WardrobeEfDb");
+
+// Контейнер стартує порожнім: для «Рекомендацій» застосовуємо скрипти з Лаб. 01 (db/p1).
+// Скрипти ідемпотентні; обробник виконується, коли SQL Server готовий приймати з'єднання.
 var scriptsDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "db", "p1"));
 builder.Eventing.Subscribe<ResourceReadyEvent>(sql.Resource, async (@event, ct) =>
 {
@@ -43,9 +45,13 @@ builder.Eventing.Subscribe<ResourceReadyEvent>(sql.Resource, async (@event, ct) 
     }
 });
 
-// ---- Сервіс: API стартує після того, як база готова ----
+// ---- Сервіси: кожен стартує після того, як його база готова ----
 builder.AddProject<Projects.Recommendations_Api>("recommendations-api")
-    .WithReference(db)
-    .WaitFor(db);
+    .WithReference(recommendationsDb)
+    .WaitFor(recommendationsDb);
+
+builder.AddProject<Projects.Wardrobe_Api>("wardrobe-api")
+    .WithReference(wardrobeDb)
+    .WaitFor(wardrobeDb);
 
 builder.Build().Run();
