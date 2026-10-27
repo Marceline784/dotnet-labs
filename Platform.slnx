@@ -1,5 +1,11 @@
 <Solution>
   <Folder Name="/Services/" />
+  <Folder Name="/Services/Feedback/">
+    <Project Path="Services/Feedback/Feedback.Application/Feedback.Application.csproj" />
+    <Project Path="Services/Feedback/Feedback.Domain/Feedback.Domain.csproj" />
+    <Project Path="Services/Feedback/Feedback.Infrastructure/Feedback.Infrastructure.csproj" />
+    <Project Path="Services/Feedback/Feedback.WebApi/Feedback.WebApi.csproj" />
+  </Folder>
   <Folder Name="/Services/Recommendations/">
     <Project Path="Services/Recommendations/Recommendations.Api/Recommendations.Api.csproj" />
     <Project Path="Services/Recommendations/Recommendations.Bll/Recommendations.Bll.csproj" />
