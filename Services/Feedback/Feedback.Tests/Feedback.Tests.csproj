@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Feedback.Domain\Feedback.Domain.csproj" />
+    <ProjectReference Include="..\Feedback.Application\Feedback.Application.csproj" />
   </ItemGroup>
 
 </Project>
