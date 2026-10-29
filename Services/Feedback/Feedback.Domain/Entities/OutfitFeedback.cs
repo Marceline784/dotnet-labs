@@ -1,3 +1,4 @@
+
 using Feedback.Domain.Common;
 using Feedback.Domain.Enums;
 using Feedback.Domain.Exceptions;
@@ -7,40 +8,43 @@ using MongoDB.Bson;
 namespace Feedback.Domain.Entities;
 
 /// <summary>
-/// Відгук на образ («замерз / комфортно / жарко»): корінь агрегату колекції outfitFeedback.
-/// Інкапсуляція: приватні setter-и, зміни лише методами, інваріанти перевіряються в конструкторі й методах,
-/// порушення правил дають DomainException (до будь-якого звернення до БД).
-/// Особливості MongoDB: вкладені Value Objects і масиви, посилання на інший документ (DiscussionId), гнучка схема.
+/// Відгук на образ: корінь агрегату колекції outfitFeedback.
 /// </summary>
 public class OutfitFeedback : BaseEntity
 {
     public const int MaxTextLength = 2000;
-    public const int MaxComments = 5;        // вкладено лише кілька останніх, решта в окремій колекції
+    public const int MaxComments = 5;
     public const int MaxPhotos = 10;
     public const int MaxItems = 20;
     public const int MinRating = 1;
     public const int MaxRating = 5;
 
-    private readonly List<Comment> _comments = new();
-    private readonly List<string> _photos = new();
-    private readonly List<ItemSnapshot> _items = new();
+    private List<Comment> _comments = new();
+    private List<string> _photos = new();
+    private List<ItemSnapshot> _items = new();
 
-    public long OutfitId { get; private set; }              // посилання на образ у сервісі «Рекомендації» (без FK)
-    public Author Author { get; private set; } = null!;     // Value Object (вкладений документ)
+    public long OutfitId { get; private set; }
+    public Author Author { get; private set; } = null!;
     public Feeling Feeling { get; private set; }
-    public int? Rating { get; private set; }                // необов'язкова оцінка 1..5
+    public int? Rating { get; private set; }
     public string? Text { get; private set; }
-    public TemperatureNote? TemperatureNote { get; private set; }   // є не в усіх документах (гнучка схема)
-    public ObjectId? DiscussionId { get; private set; }     // посилання на колекцію discussions (гібрид)
+    public TemperatureNote? TemperatureNote { get; private set; }
+    public ObjectId? DiscussionId { get; private set; }
 
-    public IReadOnlyCollection<Comment> Comments => _comments.AsReadOnly();    // вкладений масив
+    public IReadOnlyCollection<Comment> Comments => _comments.AsReadOnly();
     public IReadOnlyCollection<string> Photos => _photos.AsReadOnly();
-    public IReadOnlyCollection<ItemSnapshot> Items => _items.AsReadOnly();     // знімок речей образу
+    public IReadOnlyCollection<ItemSnapshot> Items => _items.AsReadOnly();
 
-    private OutfitFeedback() { }                            // для десеріалізації
+    private OutfitFeedback() { }
 
-    public OutfitFeedback(long outfitId, Author author, Feeling feeling, int? rating = null, string? text = null,
-        IEnumerable<ItemSnapshot>? items = null, TemperatureNote? temperatureNote = null)
+    public OutfitFeedback(
+        long outfitId,
+        Author author,
+        Feeling feeling,
+        int? rating = null,
+        string? text = null,
+        IEnumerable<ItemSnapshot>? items = null,
+        TemperatureNote? temperatureNote = null)
     {
         if (outfitId <= 0)
             throw new DomainException("OutfitId must be positive");
@@ -53,12 +57,20 @@ public class OutfitFeedback : BaseEntity
         TemperatureNote = temperatureNote;
 
         if (items is not null)
+        {
             foreach (var item in items)
                 AddItem(item);
+        }
     }
 
-    /// <summary>Зміна основних даних відгуку. Версія документа збільшується в репозиторії під час збереження.</summary>
-    public void Update(Feeling feeling, int? rating, string? text, TemperatureNote? temperatureNote)
+    /// <summary>
+    /// Зміна основних даних відгуку.
+    /// </summary>
+    public void Update(
+        Feeling feeling,
+        int? rating,
+        string? text,
+        TemperatureNote? temperatureNote)
     {
         Feeling = EnsureFeeling(feeling);
         Rating = EnsureRating(rating);
@@ -70,10 +82,12 @@ public class OutfitFeedback : BaseEntity
     public void AddComment(string authorName, string text)
     {
         if (_comments.Count >= MaxComments)
+        {
             throw new DomainException(
                 $"A feedback keeps at most {MaxComments} embedded comments; continue in the discussion");
+        }
 
-        _comments.Add(new Comment(authorName, text, DateTime.UtcNow));   // вкладений документ
+        _comments.Add(new Comment(authorName, text, DateTime.UtcNow));
         Touch();
     }
 
@@ -90,6 +104,7 @@ public class OutfitFeedback : BaseEntity
     {
         if (DiscussionId is not null)
             throw new DomainException("A discussion is already attached to this feedback");
+
         if (discussionId == ObjectId.Empty)
             throw new DomainException("Discussion id is required");
 
@@ -101,6 +116,7 @@ public class OutfitFeedback : BaseEntity
     {
         if (item is null)
             throw new DomainException("Item snapshot must not be null");
+
         if (_items.Count >= MaxItems)
             throw new DomainException($"A feedback can describe at most {MaxItems} items");
 
@@ -111,6 +127,7 @@ public class OutfitFeedback : BaseEntity
     {
         if (!Enum.IsDefined(feeling))
             throw new DomainException("Feeling must be Cold, Comfortable or Hot");
+
         return feeling;
     }
 
@@ -118,6 +135,7 @@ public class OutfitFeedback : BaseEntity
     {
         if (rating is < MinRating or > MaxRating)
             throw new DomainException($"Rating must be between {MinRating} and {MaxRating}");
+
         return rating;
     }
 }
