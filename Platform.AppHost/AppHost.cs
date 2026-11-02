@@ -5,7 +5,7 @@ using Platform.AppHost;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// ---- Один SQL Server у контейнері на всю платформу (потрібен запущений Docker Desktop).
+// ---- Один SQL Server у контейнері для SQL-сервісів платформи (потрібен запущений Docker Desktop).
 //      У ньому дві ОКРЕМІ бази: кожен сервіс має власну БД, спільних таблиць немає. ----
 var sql = builder.AddSqlServer("sql");
 
@@ -15,6 +15,14 @@ var recommendationsDb = sql.AddDatabase("RecommendationsDb", "OutfitRecommendati
 // Сервіс «Гардероб» (Лаб. 03, EF Core): ім'я ресурсу збігається з GetConnectionString("WardrobeDb").
 // Схему створює сам сервіс при старті (міграції EF Core, потім ідемпотентний сідінг): скрипти не потрібні.
 var wardrobeDb = sql.AddDatabase("WardrobeDb", "WardrobeEfDb");
+
+// ---- MongoDB у контейнері для сервісу «Відгуки» (Лаб. 04: Clean Architecture + CQRS) ----
+// Фіксований порт 27018, щоб не конфліктувати з локальною MongoDB на 27017 і зручно підключатись із Compass.
+var mongo = builder.AddMongoDB("mongo", port: 27018);
+
+// Ім'я ресурсу «FeedbackDb» збігається з ConnectionStrings:FeedbackDb, який читає Feedback.Infrastructure.
+// Індекси й початкові дані сервіс створює сам при старті (IndexCreationService, DataSeedingService).
+var feedbackDb = mongo.AddDatabase("FeedbackDb", "outfitFeedbackDb");
 
 // Контейнер стартує порожнім: для «Рекомендацій» застосовуємо скрипти з Лаб. 01 (db/p1).
 // Скрипти ідемпотентні; обробник виконується, коли SQL Server готовий приймати з'єднання.
@@ -53,5 +61,9 @@ builder.AddProject<Projects.Recommendations_Api>("recommendations-api")
 builder.AddProject<Projects.Wardrobe_Api>("wardrobe-api")
     .WithReference(wardrobeDb)
     .WaitFor(wardrobeDb);
+
+builder.AddProject<Projects.Feedback_WebApi>("feedback-api")
+    .WithReference(feedbackDb)
+    .WaitFor(feedbackDb);
 
 builder.Build().Run();
