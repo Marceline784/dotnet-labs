@@ -1,6 +1,62 @@
-@Feedback.WebApi_HostAddress = http://localhost:5094
+### Приклади запитів. Порт дивіться в консолі: "Now listening on: http://localhost:XXXX"
+@host = http://localhost:5100
 
-GET {{Feedback.WebApi_HostAddress}}/weatherforecast/
-Accept: application/json
+### 1. Список (сторінка 1 по 5) з фільтром за відчуттям
+GET {{host}}/api/feedback?page=1&pageSize=5&feeling=Cold
 
-###
+### 2. Повнотекстовий пошук (text-індекс)
+GET {{host}}/api/feedback?search=светр
+
+### 3. Фільтр за образом
+GET {{host}}/api/feedback?outfitId=1
+
+### 4. Створити відгук: 201 + Location, у тілі рядковий ObjectId
+POST {{host}}/api/feedback
+Content-Type: application/json
+
+{ "outfitId": 10, "authorUserId": 1, "authorName": "Олена", "feeling": "Comfortable", "rating": 5,
+  "text": "Тепло й зручно", "items": [ { "itemId": 3, "name": "Вовняний светр", "slot": "Top" } ],
+  "temperatureNote": { "felt": 4, "forecast": 3 } }
+
+### 5. ПОВТОРНО той самий автор на той самий образ: 400 від валідатора (або 409 від унікального індексу)
+POST {{host}}/api/feedback
+Content-Type: application/json
+
+{ "outfitId": 10, "authorUserId": 1, "authorName": "Олена", "feeling": "Hot" }
+
+### 6. КОНТРОЛЬНА ТОЧКА: rating = 10 -> 400 ще до виклику обробника (див. лог LoggingBehavior)
+POST {{host}}/api/feedback
+Content-Type: application/json
+
+{ "outfitId": 11, "authorUserId": 1, "authorName": "Олена", "feeling": "Hot", "rating": 10 }
+
+### 7. Усі помилки валідації разом
+POST {{host}}/api/feedback
+Content-Type: application/json
+
+{ "outfitId": 0, "authorUserId": 0, "authorName": "", "feeling": "Freezing", "rating": 9 }
+
+### 8. Відгук за Id (підставте ObjectId): заголовок ETag містить версію
+GET {{host}}/api/feedback/ПІДСТАВТЕ_ID
+
+### 9. Зміна з If-Match (версія з ETag). Правильна версія: 200; застаріла: 409
+PUT {{host}}/api/feedback/ПІДСТАВТЕ_ID
+Content-Type: application/json
+If-Match: "0"
+
+{ "feeling": "Hot", "rating": 4, "text": "Було жарко" }
+
+### 10. Додати коментар (не більше 5)
+POST {{host}}/api/feedback/ПІДСТАВТЕ_ID/comments
+Content-Type: application/json
+
+{ "authorName": "Макс", "text": "Згоден" }
+
+### 11. 400: некоректний ObjectId
+GET {{host}}/api/feedback/not-an-object-id
+
+### 12. 404: коректний, але неіснуючий ObjectId
+GET {{host}}/api/feedback/000000000000000000000000
+
+### 13. Видалити (204); повторно: 404
+DELETE {{host}}/api/feedback/ПІДСТАВТЕ_ID
