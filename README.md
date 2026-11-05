@@ -1,34 +1,32 @@
 # Wearcast: платформа підбору одягу за погодою
 
-Платформа складається з мікросервісів, кожен із власною базою даних. Користувач складає **власний гардероб**, а система щодня сама отримує прогноз погоди за містом з профілю й підбирає образи **лише з тих речей, що підходять під погоду** (у сніг без шортів і кросівок, у дощ лише водостійке, речі в пранні й вимкнені слоти пропускаються).
+Платформа складається з мікросервісів, кожен із власною базою даних. Користувач складає **власний гардероб**, система щодня сама отримує прогноз погоди за містом з профілю й підбирає образи **лише з тих речей, що підходять під погоду**. Після носіння користувач залишає відгук («замерз / комфортно / жарко»).
 
-| Сервіс | Лабораторна | Технологія | База даних | Опис |
+| Сервіс | Лаб. | Архітектура й технології | База даних | Документація |
 |---|---|---|---|---|
-| **Recommendations** | Лаб. 02 | ADO.NET + Dapper | `OutfitRecommendationsDb` | профілі, погода, образи, статуси образу; [детальний опис](docs/recommendations-service.md) |
-| **Wardrobe** | **Лаб. 03** | **EF Core (Code First)** | `WardrobeEfDb` | речі гардероба, деталі, фото, категорії; міграції, пагінація, специфікації |
+| **Recommendations** | 02 | три шари, ADO.NET + Dapper | SQL Server `OutfitRecommendationsDb` | [docs/recommendations-service.md](docs/recommendations-service.md) |
+| **Wardrobe** | 03 | три шари, EF Core (Code First), специфікації | SQL Server `WardrobeEfDb` | [docs/wardrobe-service.md](docs/wardrobe-service.md) |
+| **Feedback** | **04** | **Clean Architecture + CQRS (MediatR)** | **MongoDB `outfitFeedbackDb`** | **цей документ** |
 
-Дані між сервісами не діляться: немає спільних таблиць і зовнішніх ключів між базами; посилання лише за ідентифікатором (`OwnerUserId`), а потрібні копії полів описані в [політиці дублювання](#політика-дублювання-даних).
-
-Опис проєктування баз і контекстів: [`docs/lab01-report.md`](docs/lab01-report.md).
+Дані між сервісами не діляться: немає спільних таблиць і зовнішніх ключів між базами, посилання лише за ідентифікатором. Проєктування баз і контекстів: [docs/lab01-report.md](docs/lab01-report.md).
 
 ## Зміст
 
 1. [Структура репозиторію](#структура-репозиторію)
 2. [Що потрібно для запуску](#що-потрібно-для-запуску)
 3. [Запуск через Aspire](#запуск-через-aspire)
-4. [Запуск сервісу «Гардероб» окремо](#запуск-сервісу-гардероб-окремо)
-5. [Модель даних і міграції](#модель-даних-і-міграції)
-6. [Сідінг](#сідінг)
-7. [Архітектура сервісу «Гардероб»](#архітектура-сервісу-гардероб)
-8. [API: ендпоінти, пагінація, фільтрація, сортування](#api-ендпоінти-пагінація-фільтрація-сортування)
-9. [Валідація](#валідація)
-10. [Обробка помилок](#обробка-помилок)
-11. [Логування (Serilog)](#логування-serilog)
-12. [Specification pattern](#specification-pattern)
+4. [Сервіс «Відгуки»: Clean Architecture](#сервіс-відгуки-clean-architecture)
+5. [Domain](#domain)
+6. [Application: CQRS і Pipeline Behaviors](#application-cqrs-і-pipeline-behaviors)
+7. [Infrastructure: MongoDB](#infrastructure-mongodb)
+8. [WebApi](#webapi)
+9. [Обробка помилок](#обробка-помилок)
+10. [Оптимістична конкурентність](#оптимістична-конкурентність)
+11. [Логування](#логування)
+12. [Тести](#тести)
 13. [Політика дублювання даних](#політика-дублювання-даних)
-14. [Docker](#docker)
-15. [Перевірка роботи](#перевірка-роботи)
-16. [Робота з Git](#робота-з-git)
+14. [Перевірка роботи](#перевірка-роботи)
+15. [Робота з Git](#робота-з-git)
 
 ---
 
@@ -37,382 +35,332 @@
 ```text
 .
 ├── README.md
-├── Platform.slnx                      одне рішення на всю платформу
-├── Platform.AppHost/                  оркестрація .NET Aspire (AppHost.cs)
+├── Platform.slnx                       одне рішення на всю платформу
+├── Platform.AppHost/                   оркестрація .NET Aspire (AppHost.cs)
 ├── Services/
-│   ├── Recommendations/               Лаб. 02: ADO.NET + Dapper
-│   │   ├── Recommendations.Api/
-│   │   ├── Recommendations.Bll/
-│   │   ├── Recommendations.Dal/
-│   │   └── Recommendations.Domain/
-│   └── Wardrobe/                      Лаб. 03: EF Core
-│       ├── Wardrobe.Api/              контролери, Program.cs, appsettings.json, Dockerfile
-│       ├── Wardrobe.Bll/              сервіси, DTO, AutoMapper, специфікації, валідатори
-│       ├── Wardrobe.Dal/              DbContext, Configurations/, Migrations/, репозиторії, Unit of Work, сідінг
-│       └── Wardrobe.Domain/           сутності з бізнес-правилами, винятки
+│   ├── Recommendations/                Лаб. 02 (Api, Bll, Dal, Domain)
+│   ├── Wardrobe/                       Лаб. 03 (Api, Bll, Dal, Domain)
+│   └── Feedback/                       Лаб. 04: Clean Architecture + CQRS + MongoDB
+│       ├── Feedback.Domain/            сутності, value objects, інтерфейси
+│       ├── Feedback.Application/       команди, запити, behaviors, валідатори
+│       ├── Feedback.Infrastructure/    Mongo-контекст, BSON-мапінг, репозиторії, індекси, сідінг
+│       ├── Feedback.WebApi/            контролер, Program.cs, обробка помилок
+│       └── Feedback.Tests/             unit-тести
 ├── db/
-│   ├── p1/                            SQL Server (Recommendations): schema.sql, procedures.sql, seed.sql
-│   ├── p2/                            SQL Server (Лаб. 01) та згенерований EF-скрипт ef-initial.sql
-│   └── p3/                            MongoDB: collections.js, seed.js
-└── docs/                              ERD, карта контекстів, описи сервісів і лабораторних
+│   ├── p1/                             SQL Server (Recommendations)
+│   ├── p2/                             SQL Server (Лаб. 01) та EF-скрипт ef-initial.sql
+│   └── p3/                             MongoDB (Лаб. 01): collections.js, seed.js, queries.js
+└── docs/                               ERD, карта контекстів, описи сервісів
 ```
 
 ## Що потрібно для запуску
 
 - **.NET SDK 9 або 10** (`dotnet --version`)
 - **Docker Desktop** (запущений) для запуску через Aspire
-- Інструмент міграцій: `dotnet tool install --global dotnet-ef`
-- Для окремого запуску без Docker: SQL Server (наприклад, SQL Server Express) і SSMS
+- Для окремого запуску сервісу «Відгуки»: MongoDB на `localhost:27017` (наприклад, локальна або `docker run -d -p 27017:27017 mongo:7`)
+- За бажанням: MongoDB Compass для перегляду документів
 
 ## Запуск через Aspire
 
-Одна команда піднімає SQL Server у контейнері, обидві бази й обидва сервіси:
+Одна команда піднімає SQL Server, MongoDB і всі три сервіси:
 
 ```bash
 dotnet run --project Platform.AppHost
 ```
 
-1. У консолі з'явиться посилання на **Aspire Dashboard** (`https://localhost:17xxx/login?t=...`), відкрий його.
-2. Ресурси `sql`, `RecommendationsDb`, `WardrobeDb`, `recommendations-api` і `wardrobe-api` мають перейти в статус **Running**.
-3. У колонці **Endpoints** рядка `wardrobe-api` клікни адресу й допиши `/swagger`.
+1. У консолі з'явиться посилання на **Aspire Dashboard** (`https://localhost:17xxx/login?t=...`).
+2. Ресурси `sql`, `RecommendationsDb`, `WardrobeDb`, `mongo`, `FeedbackDb`, `recommendations-api`, `wardrobe-api` і `feedback-api` мають перейти в статус **Running**.
+3. У колонці **Endpoints** рядка `feedback-api` клікни адресу й допиши `/swagger`.
 
-Що відбувається при старті:
-- для **Recommendations** AppHost виконує скрипти `db/p1` (схема, процедури, тестові дані);
-- для **Wardrobe** схему створює **сам сервіс**: застосовує міграції EF Core (`MigrateAsync`), після чого ідемпотентно наповнює базу початковими даними (в Development).
+Ім'я ресурсу бази в `AppHost.cs` (`FeedbackDb`) збігається з іменем рядка підключення, яке читає сервіс (`ConnectionStrings:FeedbackDb`), тому Aspire передає його змінною оточення, а код сервісу змінювати не треба. Індекси та початкові дані сервіс «Відгуки» створює **сам** під час старту.
 
-Ім'я ресурсу бази в `AppHost.cs` (`WardrobeDb`) збігається з іменем рядка підключення в сервісі (`GetConnectionString("WardrobeDb")`), тому Aspire передає рядок змінною оточення `ConnectionStrings__WardrobeDb`, і код сервісу змінювати не треба. Зупинка: **Ctrl+C**.
+**Compass.** MongoDB у контейнері відкрита на фіксованому порту **27018**. Пароль адміністратора: Dashboard → ресурс `mongo` → змінна `MONGO_INITDB_ROOT_PASSWORD`. Рядок підключення:
 
-## Запуск сервісу «Гардероб» окремо
+```text
+mongodb://admin:<пароль>@localhost:27018/?authSource=admin
+```
 
-Використовується локальний SQL Server. База `WardrobeEfDb` створюється міграціями автоматично під час старту.
+### Окремий запуск сервісу «Відгуки»
 
-1. Вкажи рядок підключення в `Services/Wardrobe/Wardrobe.Api/appsettings.json` (ім'я сервера має відповідати твоєму екземпляру: `localhost\\SQLEXPRESS` або `localhost`):
+1. Переконайся, що MongoDB працює на `localhost:27017`.
+2. За потреби зміни секцію `MongoDb` у `Services/Feedback/Feedback.WebApi/appsettings.json`:
 
    ```json
-   "ConnectionStrings": {
-     "WardrobeDb": "Server=localhost\\SQLEXPRESS;Database=WardrobeEfDb;Trusted_Connection=True;TrustServerCertificate=True"
+   "MongoDb": {
+     "ConnectionString": "mongodb://localhost:27017/?maxPoolSize=50&serverSelectionTimeoutMS=5000",
+     "DatabaseName": "outfitFeedbackDb",
+     "InitializeOnStartup": true
    }
    ```
 
-   Рядок можна перевизначити змінною оточення (подвійне підкреслення замість двокрапки): `ConnectionStrings__WardrobeDb`.
-2. Запуск:
+   Окремі значення для середовищ задаються файлами `appsettings.{Environment}.json` або змінними оточення (`MongoDb__ConnectionString`). Параметри пулу з'єднань і таймаутів вказуються в рядку підключення (`maxPoolSize`, `serverSelectionTimeoutMS`).
+3. Запуск:
 
    ```bash
-   dotnet run --project Services/Wardrobe/Wardrobe.Api --launch-profile http
+   dotnet run --project Services/Feedback/Feedback.WebApi --launch-profile http
    ```
 
-3. Адресу видно в консолі (`Now listening on: http://localhost:XXXX`); Swagger: `/swagger`.
+   Адреса видно в консолі (`Now listening on: ...`), Swagger: `/swagger`.
 
-Сідінг можна вимкнути налаштуванням `Database:Seed = false`; у середовищі **Production** він не виконується ніколи.
+---
 
-## Модель даних і міграції
+## Сервіс «Відгуки»: Clean Architecture
 
-Схему бази описано **у коді** (Code First): сутності в `Wardrobe.Domain`, налаштування відображення в окремих класах `IEntityTypeConfiguration<T>` (`Wardrobe.Dal/Configurations`), які підключаються централізовано в `OnModelCreating` через `ApplyConfigurationsFromAssembly`.
+Чотири шари. **Внутрішні шари не знають про зовнішні**; Infrastructure лише реалізує інтерфейси, оголошені у внутрішніх шарах.
 
 ```mermaid
-erDiagram
-    WardrobeItems ||--o| ItemDetails : "1:1 (ItemId = PK = FK)"
-    WardrobeItems ||--o{ ItemImages : "1:N"
-    WardrobeItems ||--o{ ItemCategories : "M:N через проміжну сутність"
-    Categories ||--o{ ItemCategories : "M:N через проміжну сутність"
-
-    WardrobeItems {
-        bigint Id PK
-        bigint OwnerUserId "без FK: користувач в іншому сервісі"
-        nvarchar Name "до 200, унікальна для власника"
-        nvarchar Slot "Top Bottom Shoes Bag Accessory"
-        nvarchar Layer "Base Mid Outer"
-        bit IsAvailable "false = у пранні"
-        bit IsDeleted "м'яке видалення"
-        rowversion RowVersion
-    }
-    ItemDetails {
-        bigint ItemId PK
-        tinyint Warmth "1..5"
-        smallint MinTemp
-        smallint MaxTemp
-        tinyint WaterResistance "0..3"
-    }
-    ItemImages {
-        bigint Id PK
-        bigint ItemId FK
-        nvarchar Url
-        bit IsPrimary
-    }
-    Categories {
-        bigint Id PK
-        nvarchar Name "унікальна"
-    }
-    ItemCategories {
-        bigint ItemId PK
-        bigint CategoryId PK
-        datetime2 AddedAt "власне поле зв'язку"
-    }
+flowchart LR
+    W[Feedback.WebApi<br/>контролери, DI, ProblemDetails] --> A[Feedback.Application<br/>команди, запити, behaviors]
+    W -. лише реєстрація залежностей .-> I[Feedback.Infrastructure<br/>MongoDB]
+    I --> A
+    I --> D[Feedback.Domain<br/>сутності, value objects]
+    A --> D
 ```
 
-| Вимога | Реалізація |
-|---|---|
-| Ключі, довжини, типи | `HasKey`, `HasMaxLength`, `HasColumnType`; enum зберігаються рядками |
-| Унікальні обмеження й індекси | `Categories.Name`; **`UX_WardrobeItems_Owner_Name`** (унікальна назва речі в користувача, фільтрований за `IsDeleted = 0`); `IX_WardrobeItems_Owner_Slot` (покриваючий, фільтрований); `IX_ItemCategories_CategoryId` |
-| CHECK-обмеження | допустимі значення `Slot` та `Layer`; шари `Mid`/`Outer` лише для `Top`; теплота 1–5; водостійкість 0–3; `MaxTemp > MinTemp` |
-| 1:1 | `WardrobeItem` ↔ `ItemDetail` (PK залежної таблиці є й FK) |
-| 1:N | `WardrobeItem` → `ItemImage` (каскадне видалення) |
-| M:N з власним полем | `WardrobeItem` ↔ `Category` через **`ItemCategory`** (складений ключ, `AddedAt`); категорію з речами видалити не можна (`Restrict`) |
-| Оптимістична конкурентність | стовпець `RowVersion` (`rowversion`) |
+| Шар | Залежить від | Зміст |
+|---|---|---|
+| `Feedback.Domain` | **нічого** (лише типи BSON `ObjectId` з пакета `MongoDB.Bson`, без драйвера БД) | `BaseEntity`, `ValueObject`, сутності, value objects, доменні винятки, інтерфейси репозиторіїв |
+| `Feedback.Application` | Domain | сценарії використання: команди й запити MediatR, обробники, валідатори FluentValidation, Pipeline Behaviors, інтерфейс читання `IFeedbackQueries` |
+| `Feedback.Infrastructure` | Application, Domain | `MongoDbContext`, BSON-мапінг, репозиторії, запити читання, індекси, сідінг |
+| `Feedback.WebApi` | Application, Infrastructure (лише для DI) | контролер, AutoMapper, обробка помилок, Serilog, Swagger, `Program.cs` |
 
-### Міграції
+Кожен шар надає власний метод розширення DI (`AddApplication`, `AddInfrastructure`), які викликає `Program.cs`. Перевірка: у `Feedback.Domain.csproj` немає посилань на інші проєкти.
 
-У репозиторії є дві міграції (`Services/Wardrobe/Wardrobe.Dal/Migrations`):
-1. **`InitialCreate`**: усі таблиці, ключі, обмеження, індекси, статичні дані довідника;
-2. **`AddUniqueItemNamePerOwner`**: унікальний індекс назви речі в межах власника.
+## Domain
 
-Рядок підключення для інструменту `dotnet-ef` береться зі змінної `WARDROBE_CONNECTION` (інакше використовується значення за замовчуванням з `WardrobeDbContextFactory`):
+- **`BaseEntity` для MongoDB:** `Id` (`ObjectId`), `CreatedAt`, `UpdatedAt`, `Version` (оптимістична конкурентність).
+- **`ValueObject`:** порівняння **за значеннями** компонентів (`Equals`, `GetHashCode`, `==`). Value Objects незмінні, без setter-ів, з валідацією в конструкторі:
 
-```bash
-export WARDROBE_CONNECTION="Server=localhost\\SQLEXPRESS;Database=WardrobeEfDb;Trusted_Connection=True;TrustServerCertificate=True"
+  | Value Object | Призначення |
+  |---|---|
+  | `Author` | вкладений документ `author` (`userId`, `displayName`) |
+  | `ItemSnapshot` | знімок речі з образу на момент відгуку (денормалізація) |
+  | `TemperatureNote` | відчута й прогнозована температура (є не в усіх документах) |
+  | `Comment` | вкладений коментар |
 
-# створити міграцію
-dotnet ef migrations add <Name> --project Services/Wardrobe/Wardrobe.Dal --startup-project Services/Wardrobe/Wardrobe.Api
+- **Сутності:** `OutfitFeedback` (корінь агрегату відгуку) і `Discussion` (тема обговорення; повідомлення зберігаються окремо за посиланням).
+- **Інкапсуляція:** приватні setter-и, зміни лише методами (`Update`, `AddComment`, `AddPhoto`, `AttachDiscussion`), інваріанти перевіряються в конструкторі й методах, порушення дають `DomainException` ще до звернення до БД: оцінка 1–5, текст до 2000 символів, **не більше 5 вкладених коментарів** (довше обговорення живе в окремій колекції), не більше 10 фото, не більше 20 речей у знімку.
+- **Інтерфейси:** `IFeedbackRepository` і `IDiscussionRepository` оголошені в Domain, реалізовані в Infrastructure.
 
-# застосувати до бази
-dotnet ef database update --project Services/Wardrobe/Wardrobe.Dal --startup-project Services/Wardrobe/Wardrobe.Api
+## Application: CQRS і Pipeline Behaviors
 
-# згенерувати ідемпотентний SQL-скрипт з усіх міграцій
-dotnet ef migrations script --idempotent --project Services/Wardrobe/Wardrobe.Dal --startup-project Services/Wardrobe/Wardrobe.Api -o db/p2/ef-initial.sql
+Операції **запису** (Commands) і **читання** (Queries) розділені: кожна має окремий об'єкт-запит з окремим обробником.
+
+| Тип | Операція | Об'єкт |
+|---|---|---|
+| Command | створити відгук | `CreateFeedbackCommand` → `ObjectId` рядком |
+| Command | змінити відгук | `UpdateFeedbackCommand` (з `ExpectedVersion`) → нова версія |
+| Command | видалити відгук | `DeleteFeedbackCommand` |
+| Command | додати коментар | `AddCommentCommand` → нова версія |
+| Query | відгук за Id | `GetFeedbackByIdQuery` → `FeedbackDetailsDto` |
+| Query | список | `GetFeedbackListQuery` (фільтри, пошук, пагінація) → `PagedResult<FeedbackDto>` |
+
+Обробники запитів не звертаються до MongoDB: вони викликають інтерфейс **`IFeedbackQueries`** (Application), реалізований в Infrastructure. Контролер і обробники не використовують `IMongoCollection` напряму.
+
+### Pipeline Behaviors
+
+Кожна команда й кожен запит проходять через ланцюжок «обгорток» перед обробником. Порядок реєстрації (`AddOpenBehavior`) визначає порядок виконання: перший зареєстрований стає найзовнішнім.
+
+```mermaid
+sequenceDiagram
+    participant C as Контролер
+    participant L as LoggingBehavior
+    participant V as ValidationBehavior
+    participant P as PerformanceBehavior
+    participant H as Обробник
+    C->>L: Send(команда або запит)
+    L->>V: Handling...
+    alt є помилки валідації
+        V-->>L: ValidationException (усі помилки разом)
+        L-->>C: failed (обробник НЕ викликався)
+    else валідно
+        V->>P: next
+        P->>H: Handle
+        H-->>P: результат
+        P-->>V: час виконання, попередження > 500 мс
+        V-->>L: результат
+        L-->>C: Handled in N ms
+    end
 ```
 
-Готовий скрипт: [`db/p2/ef-initial.sql`](db/p2/ef-initial.sql). Початкова схема Лаб. 01 (`db/p2/schema.sql`) лишається як проєктний документ; **для сервісу джерелом схеми є міграції**.
-
-## Сідінг
-
-Сідінг **ідемпотентний**: повторний запуск не створює дублікатів.
-
-| Режим | Де | Що наповнює |
-|---|---|---|
-| **Статичний (модельний)** | `HasData` у `CategoryConfiguration` | 12 категорій із фіксованими Id (потрапляє в міграцію `InitialCreate`) |
-| **Програмний** | `DbInitializer.SeedAsync`, викликається в `Program.cs` після `MigrateAsync()` | 21 річ двох користувачів із деталями, фото й категоріями; перед вставкою перевіряється `AnyAsync()` |
-
-Порядок зберігає цілісність зовнішніх ключів: спочатку довідник категорій, потім залежні записи. Усі дані зберігаються **одним** `SaveChangesAsync` (в одній транзакції). У **Production** програмний сідінг вимкнено, у CI/CD його можна вимкнути налаштуванням `Database:Seed = false`.
-
-## Архітектура сервісу «Гардероб»
-
-Залежності спрямовані в один бік: **Api → Bll → Dal**, а **Domain** підключають і Dal, і Bll. Контролери не звертаються до `DbContext` і репозиторіїв напряму, лише через сервіси.
-
-| Шар | Зміст |
+| Behavior | Призначення |
 |---|---|
-| `Wardrobe.Domain` | сутності з **інкапсульованими бізнес-правилами**: немає відкритих setter-ів, зміни лише методами (`MarkInLaundry()`, `AddImage()`, `AddToCategory()`, `Update()`), конструктор перевіряє інваріанти; доменні винятки |
-| `Wardrobe.Dal` | `WardrobeDbContext`, конфігурації, міграції, репозиторії, Unit of Work, сідінг |
-| `Wardrobe.Bll` | сервіси, DTO, профілі AutoMapper, валідатори, специфікації |
-| `Wardrobe.Api` | контролери, глобальна обробка помилок, Serilog, Swagger |
+| `LoggingBehavior` | структуроване логування кожного запиту: що прийшло, скільки тривало, чим закінчилось |
+| `ValidationBehavior` | виконує всі валідатори FluentValidation, збирає **всі** помилки й кидає `ValidationException`; обробник при цьому **не викликається** |
+| `PerformanceBehavior` | вимірює час обробника (разом із запитами до MongoDB), попереджає, якщо довше 500 мс |
 
-### Репозиторії
+**Валідатори** (`AbstractValidator<T>`) є для всіх команд і запитів і реєструються автоматично (`AddValidatorsFromAssembly`). MongoDB-специфічні правила: коректність рядка `ObjectId` (`ObjectId.TryParse`), допустимі значення `feeling`. **Асинхронна валідація із запитом до MongoDB:** користувач не може залишити другий відгук на той самий образ.
 
-**Async Generic Repository** (`GenericRepository<T>` на `DbSet<T>`): `GetByIdAsync`, `GetAllAsync`, `AddAsync`, `Update`, `Delete`, `SaveChangesAsync`, а також `ListAsync(spec)` і `CountAsync(spec)`. `Update` і `Delete` лише змінюють стан сутності в контексті, тому синхронні.
+## Infrastructure: MongoDB
 
-Три специфічні репозиторії демонструють різні способи читання пов'язаних даних:
+- **`MongoDbContext`** отримує налаштування через `IOptions<MongoDbOptions>` (рядок підключення, назва БД) і надає колекції `outfitFeedback` та `discussions`. Реєструється як Singleton (`MongoClient` потокобезпечний).
+- **BSON-серіалізація (`BsonClassMap`)** налаштована в `MongoMappings` **без атрибутів у доменних класах**: єдина конвенція імен (camelCase, як у Лаб. 01), enum рядком, приватні поля колекцій під іменами `comments`, `photos`, `itemSnapshot`, незмінні Value Objects створюються через конструктор (`MapCreator`), невідомі поля ігноруються (гнучка схема). Мапінг реєструється один раз при старті, до першого звернення до БД.
+- **`FeedbackRepository`** (шлях запису) реалізує `IFeedbackRepository` через MongoDB Driver; **`FeedbackQueries`** (шлях читання) будує список **aggregation pipeline**: `$match` (фільтри, `$text`), `$sort`, `$skip`, `$limit`, `$project` із підрахунком коментарів (`$size`). Пагінація й фільтрація виконуються засобами MongoDB, у пам'ять потрапляє лише сторінка, а з документів вибираються лише потрібні поля.
 
-| Репозиторій | Спосіб | SQL-запитів | Метод |
-|---|---|---|---|
-| `WardrobeItemRepository` | **Eager Loading** (`Include` / `ThenInclude`) | **1** (з `LEFT JOIN`) | `GetWithDetailsAsync`: річ разом із деталями, фото й категоріями |
-| `CategoryRepository` | **Explicit Loading** (`Entry().Collection().Query().LoadAsync()`) | **2** (категорія, потім її речі) | `GetWithItemsAsync` |
-| `ItemCategoryRepository` | **LINQ to Entities** через проміжну сутність M:N | 1 | `GetRecentlyAddedAsync`: фільтр за категорією та полем `AddedAt` |
+### Індекси (створюються автоматично при старті)
 
-**Unit of Work** (`UnitOfWork`) об'єднує репозиторії над одним `DbContext` з єдиним `SaveChangesAsync()`: репозиторії лише додають, змінюють і видаляють сутності в контексті, а всі зміни потрапляють у базу одним викликом, тобто **в одній транзакції**. Помилки збереження (конкурентна зміна `rowversion`, порушення унікального індексу) перетворюються на `ConflictException` (HTTP 409).
+`IndexCreationService` (`IHostedService`) визначає індекси в коді. Повторне створення наявного індексу безпечне. Назви збігаються з Лаб. 01.
 
-## API: ендпоінти, пагінація, фільтрація, сортування
+| Індекс | Призначення |
+|---|---|
+| `ux_feedback_outfit_user` (унікальний: `outfitId`, `author.userId`) | один відгук від автора на образ |
+| `ix_feedback_user_date` (`author.userId`, `createdAt` -1) | відгуки користувача, найновіші першими |
+| `ix_feedback_user_feeling` (`author.userId`, `feeling`, `createdAt` -1) | розподіл відчуттів |
+| `ix_feedback_outfit_date` (`outfitId`, `createdAt` -1) | складений: останні відгуки про образ |
+| `ix_feedback_with_photos` (частковий: `photos` існує) | стрічка відгуків із фото |
+| `tx_feedback_text` (текстовий) | повнотекстовий пошук (`?search=`) |
+| `ix_discussions_last` (колекція `discussions`) | стрічка обговорень за активністю |
 
-Повний опис із моделями та статусами: **Swagger UI** (`/swagger`).
+Перевірка в Compass або `mongosh`: `db.outfitFeedback.getIndexes()` показує всі індекси, а не лише `_id`.
 
-| Метод і шлях | Призначення | Успіх | Помилки |
-|---|---|---|---|
-| `GET /api/wardrobe-items` | **список із пагінацією, фільтрами, сортуванням** | 200 | 400 |
-| `GET /api/wardrobe-items/{id}` | картка речі (eager) | 200 | 404 |
-| `POST /api/wardrobe-items` | створити річ | **201 + `Location`** | 400, 409 |
-| `PUT /api/wardrobe-items/{id}` | змінити річ | 200 | 400, 404, 409 |
-| `DELETE /api/wardrobe-items/{id}` | видалити (м'яко) | **204** | 404 |
-| `POST /api/wardrobe-items/{id}/laundry` | відправити в прання | 200 | 404, **409** (вже в пранні) |
-| `DELETE /api/wardrobe-items/{id}/laundry` | повернути з прання | 200 | 404, 409 |
-| `GET /api/users/{userId}/laundry` | речі в пранні (специфікація) | 200 | |
-| `PUT /api/wardrobe-items/{id}/detail` | деталі речі (1:1) | 200 | 400, 404 |
-| `POST /api/wardrobe-items/{id}/images` | додати фото (1:N) | 201 | 400, 404, 409 |
-| `PUT /api/wardrobe-items/{id}/images/{imageId}/primary` | зробити фото головним | 204 | 404 |
-| `DELETE /api/wardrobe-items/{id}/images/{imageId}` | видалити фото | 204 | 404 |
-| `POST /api/wardrobe-items/{id}/categories` | додати в категорію (M:N) | 200 | 404, 409 |
-| `DELETE /api/wardrobe-items/{id}/categories/{categoryId}` | прибрати з категорії | 204 | 404 |
-| `GET /api/wardrobe-items/recently-added?category=Winter&days=30` | речі категорії, додані за N днів (M:N, `AddedAt`) | 200 | 400 |
-| `GET /api/categories` | довідник категорій | 200 | |
-| `GET /api/categories/{id}` | категорія з речами (explicit) | 200 | 404 |
-| `POST /api/categories`, `PUT /api/categories/{id}` | створити, перейменувати | 201, 200 | 400, 404, 409 |
-| `DELETE /api/categories/{id}` | видалити (якщо в ній немає речей) | 204 | 404, **409** |
+### Сідінг
 
-### Контракт колекції
+`IDataSeeder` і `FeedbackSeeder` наповнюють базу початковими даними: повний відгук із вкладеними масивами (`itemSnapshot`, `photos`, `comments`) і обговоренням, короткий із `temperatureNote` та два мінімальні (різні набори полів, гнучка схема). Сідінг **ідемпотентний**: якщо колекція вже наповнена, нічого не робить; використовує `InsertManyAsync`. Вимикається налаштуванням `MongoDb:InitializeOnStartup = false`.
 
-**Запит** `GET /api/wardrobe-items`:
-
-| Параметр | Значення за замовчуванням | Опис |
-|---|---|---|
-| `page` | 1 | номер сторінки (від 1) |
-| `pageSize` | 20 | розмір сторінки, від 1 до **100** |
-| `search` | | частина назви речі |
-| `ownerUserId` | | власник |
-| `slot` | | `Top`, `Bottom`, `Shoes`, `Bag`, `Accessory` |
-| `isAvailable` | | `false` = лише речі в пранні |
-| `category` | | назва категорії |
-| `minWarmth` | | мінімальна теплота (1–5) |
-| `sortBy` | `name` | дозволені поля: `name`, `slot`, `created` |
-| `sortDir` | `asc` | `asc` або `desc` |
-
-**Відповідь** (метадані в тілі **і** в заголовках `X-Total-Count`, `X-Page`, `X-Page-Size`, `X-Total-Pages`):
+Приклад документа в колекції `outfitFeedback`:
 
 ```json
 {
-  "items": [ { "id": 3, "ownerUserId": 1, "name": "Wool sweater", "slot": "Top", "layer": "Mid",
-               "isAvailable": true, "warmth": 4, "primaryImageUrl": "/img/wardrobe/wool-sweater.jpg" } ],
-  "totalCount": 21,
-  "page": 2,
-  "pageSize": 5,
-  "totalPages": 5,
-  "hasNext": true,
-  "hasPrevious": true
+  "_id": { "$oid": "..." },
+  "createdAt": { "$date": "..." },
+  "version": 0,
+  "outfitId": 1,
+  "author": { "userId": 1, "displayName": "Олена" },
+  "feeling": "Comfortable",
+  "rating": 5,
+  "text": "Вітровка і светр виручили...",
+  "photos": [ "fb1_a.jpg", "fb1_b.jpg" ],
+  "itemSnapshot": [ { "itemId": 2, "name": "Легка вітровка", "slot": "Top" } ],
+  "comments": [ { "author": "Андрій", "text": "Класний образ", "createdAt": { "$date": "..." } } ],
+  "discussionId": { "$oid": "..." }
 }
 ```
 
-Фільтрація, сортування та `Skip/Take` виконуються **в SQL** (`WHERE ... ORDER BY ... OFFSET ... FETCH`) **до** `ToListAsync()`: з бази повертається лише потрібна сторінка, повні таблиці в пам'ять не завантажуються. `totalCount` рахує база за тими самими критеріями **без** пагінації, тож це кількість усіх записів за фільтром, а не на сторінці. Сортування лише за дозволеними полями; `Id` додається наприкінці для стабільного порядку.
+У документі немає внутрішніх полів .NET (`_comments`, `Id`, `_t`).
+
+## WebApi
+
+Контролер лише передає команди й запити в MediatR через `ISender` (базовий `ApiControllerBase`). Усі методи асинхронні. Вхідні контракти (`CreateFeedbackRequest`, `UpdateFeedbackRequest`, `AddCommentRequest`) перетворюються на команди **AutoMapper-ом** (`FeedbackProfile`). Swagger: `/swagger`.
+
+| Метод і шлях | Операція MediatR | Успіх | Помилки |
+|---|---|---|---|
+| `GET /api/feedback` | `GetFeedbackListQuery` | 200 | 400 |
+| `GET /api/feedback/{id}` | `GetFeedbackByIdQuery` | 200 + `ETag` | 400, 404 |
+| `POST /api/feedback` | `CreateFeedbackCommand` | **201 + `Location`**, у тілі рядковий `ObjectId` | 400, 409 |
+| `PUT /api/feedback/{id}` | `UpdateFeedbackCommand` | 200 + `ETag` | 400, 404, **409** |
+| `POST /api/feedback/{id}/comments` | `AddCommentCommand` | 200 + `ETag` | 400, 404, 409 |
+| `DELETE /api/feedback/{id}` | `DeleteFeedbackCommand` | 204 | 400, 404 |
+
+Параметри списку: `outfitId`, `authorUserId`, `feeling` (`Cold`, `Comfortable`, `Hot`), `search` (повнотекстовий, через text-індекс), `page` (від 1), `pageSize` (1–100, за замовчуванням 20). Відповідь: `items`, `totalCount`, `page`, `pageSize`, `totalPages`, `hasNext`, `hasPrevious`; загальна кількість також у заголовку `X-Total-Count`.
 
 Приклади (`$API` це адреса сервісу):
 
 ```bash
-# друга сторінка по 5 речей
-curl "$API/api/wardrobe-items?page=2&pageSize=5"
+# створити відгук: 201 + Location
+curl -X POST "$API/api/feedback" -H "Content-Type: application/json" \
+  -d '{"outfitId":10,"authorUserId":1,"authorName":"Олена","feeling":"Comfortable","rating":5,"text":"Тепло й зручно"}'
 
-# фільтри й сортування
-curl "$API/api/wardrobe-items?ownerUserId=1&slot=Top&search=wool&sortBy=name&sortDir=desc"
+# rating = 10 відхиляється валідацією ДО виклику обробника: 400
+curl -X POST "$API/api/feedback" -H "Content-Type: application/json" \
+  -d '{"outfitId":11,"authorUserId":1,"authorName":"Олена","feeling":"Hot","rating":10}'
 
-# створити річ (201 + Location)
-curl -X POST "$API/api/wardrobe-items" -H "Content-Type: application/json" \
-  -d '{"ownerUserId":1,"name":"Linen shirt","slot":"Top","layer":"Base","detail":{"warmth":1,"minTemp":15,"maxTemp":35,"waterResistance":0,"isWindproof":false}}'
-
-# те саме вдруге: 409
+# список із повнотекстовим пошуком
+curl "$API/api/feedback?search=светр&page=1&pageSize=5"
 ```
 
-Готові запити: `Services/Wardrobe/Wardrobe.Api/Wardrobe.Api.http`.
-
-## Валідація
-
-Правила **не дублюються**: прості задано атрибутами, складні виконують валідатори.
-
-| Рівень | Інструмент | Що перевіряє |
-|---|---|---|
-| DTO | **DataAnnotations** (`Required`, `StringLength`, `Range`) | обов'язкові поля, довжини, діапазони (теплота 1–5, водостійкість 0–3) |
-| Окремі класи | **FluentValidation** (виклик явний, у контролері) | допустимі назви `Slot` і `Layer`; залежність «шар `Mid`/`Outer` лише для верху»; `MaxTemp > MinTemp`; коректний URL фото; параметри запиту колекції (`page`, `pageSize`, `sortBy`, `sortDir`) |
-| Сутність | методи й конструктор сутності | інваріанти предметної області (ліміт фото, повтор прання, повторне додавання в категорію) |
-| Сервіс | перевірки, що потребують даних із БД | унікальність назви речі в користувача, існування категорії |
-
-Помилки повертаються у форматі **`ValidationProblemDetails`** з переліком по полях:
-
-```json
-{
-  "title": "One or more validation errors occurred.",
-  "status": 400,
-  "errors": {
-    "Name": [ "The Name field is required." ],
-    "Slot": [ "Slot must be one of: Top, Bottom, Shoes, Bag, Accessory" ]
-  }
-}
-```
+Готові запити: `Services/Feedback/Feedback.WebApi/Feedback.WebApi.http`.
 
 ## Обробка помилок
 
-Усі винятки обробляє **один** глобальний обробник (`ApiExceptionHandler`, `IExceptionHandler` + `AddProblemDetails`), у контролерах немає `try/catch`. Кожен виняток **логується один раз** (саме в обробнику). Деталі внутрішніх помилок (500) віддаються лише в Development.
+Усі винятки обробляє **один** глобальний обробник (`IExceptionHandler` + `AddProblemDetails`), включно з MongoDB-специфічними. Відповідь: `ProblemDetails` із `traceId` та `correlationId`.
 
-| Виняток | Коли виникає | Статус |
-|---|---|---|
-| `EntityNotFoundException` | річ чи категорія не знайдена | **404** |
-| `ValidationException` | некоректні вхідні дані | **400** |
-| `ConflictException` | дубль назви, конкурентна зміна, порушення UNIQUE, категорія з речами | **409** |
-| `DomainException` | порушення бізнес-правила сутності (річ уже в пранні, повторне додавання в категорію, ліміт фото) | **409** |
-| будь-який інший | непередбачена помилка | **500** (без внутрішніх деталей у production) |
-
-Приклад 404: `GET /api/wardrobe-items/999999`
-
-```json
-{ "title": "Resource not found", "status": 404,
-  "detail": "WardrobeItem with id '999999' was not found",
-  "traceId": "0HN...", "correlationId": "5c1f0e2b7d3a4e8f9a6b1c2d3e4f5a6b" }
-```
-
-Приклад 409: повторне створення речі з тією самою назвою
-
-```json
-{ "title": "Conflict", "status": 409,
-  "detail": "An item named 'Linen shirt' already exists in this wardrobe",
-  "traceId": "0HN...", "correlationId": "..." }
-```
-
-## Логування (Serilog)
-
-Логи **структуровані** (властивості як ключі), sink: консоль. Рівні налаштовано в `appsettings.json` (`Serilog:MinimumLevel`), SQL-команди EF Core вмикаються правилом `MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", Information)`.
-
-Кожен запис запиту містить властивості `CorrelationId` (заголовок `X-Correlation-Id` або новий) і `RequestPath`; `UserId` не додається, бо автентифікації в сервісі поки немає. Один підсумковий запис на запит створює `UseSerilogRequestLogging()` (метод, шлях, статус, тривалість).
-
-Логи SQL дозволяють **перевірити різницю між способами завантаження**:
-- `GET /api/wardrobe-items/1` (**eager**): у консолі **один** `SELECT` з `LEFT JOIN` до `ItemDetails`, `ItemImages` і `ItemCategories` з `Categories`;
-- `GET /api/categories/10` (**explicit**): у консолі **два окремі** `SELECT`: спочатку з `Categories`, потім з `ItemCategories` із приєднаною `WardrobeItems`.
-
-## Specification pattern
-
-Складна логіка вибірок винесена із сервісів у класи специфікацій (бібліотека **Ardalis.Specification**). Специфікація описує критерії (`Where`), включення (`Include`), сортування (`OrderBy`) та пагінацію (`Skip`/`Take`) і не залежить від EF; репозиторій лише застосовує її через `WithSpecification(spec)`.
-
-| Специфікація | Призначення |
+| Виняток | HTTP-статус |
 |---|---|
-| `WardrobeItemsFilterSpec` | лише критерії фільтрації; використовується для `totalCount` |
-| `WardrobeItemsPageSpec` | ті самі критерії + `Include` + сортування + `Skip/Take` |
-| `ItemsInLaundrySpec` | **інші** критерії (речі користувача в пранні); працює через той самий `ListAsync` без змін у репозиторії |
+| `NotFoundException` | **404** |
+| `ValidationException` (FluentValidation, усі помилки разом по полях) | **400** |
+| `DomainException` (правила сутностей) | **400** |
+| `ConflictException` (зокрема конфлікт версій) | **409** |
+| `MongoWriteException` з `DuplicateKey` (унікальний індекс) | **409** (інші помилки запису: 400) |
+| `MongoConnectionException`, таймаут вибору сервера | **503** |
+| будь-який інший | **500** (деталі лише в Development) |
+
+Приклад 400 (`rating = 10`):
+
+```json
+{
+  "title": "Validation error",
+  "status": 400,
+  "detail": "One or more validation errors occurred",
+  "errors": { "Rating": [ "'Rating' must be between 1 and 5. You entered 10." ] },
+  "traceId": "...", "correlationId": "..."
+}
+```
+
+Повторний відгук того самого користувача на той самий образ відхиляється асинхронним валідатором (**400**), а унікальний індекс `ux_feedback_outfit_user` є другою лінією захисту (**409**). Некоректний `ObjectId` у маршруті дає 400, коректний, але неіснуючий, дає 404.
+
+## Оптимістична конкурентність
+
+Кожен документ має поле `version`. Оновлення виконується лише для документа з очікуваною версією: репозиторій заміняє документ умовою `{ _id, version: <очікувана> }`, а при розбіжності кидає `ConflictException` (409). Документи без поля `version` (старі, з Лаб. 01) вважаються версією 0.
+
+На рівні HTTP це **ETag / If-Match**:
+
+1. `GET /api/feedback/{id}` повертає версію в заголовку `ETag: "0"`.
+2. `PUT /api/feedback/{id}` (і додавання коментаря) приймає її в заголовку `If-Match: "0"`.
+3. Якщо документ уже змінив хтось інший, відповідь **409 Conflict**; успішна зміна повертає нову версію в `ETag`.
+
+Заголовок `If-Match` необов'язковий (без нього перевіряється лише захист від гонки між читанням і записом у репозиторії).
+
+## Логування
+
+Serilog, структуровані логи (sink: консоль). Кожен запис запиту містить властивості `CorrelationId` (заголовок `X-Correlation-Id` або новий) і `RequestPath`. `LoggingBehavior` логує кожну команду й запит. Для запиту, відхиленого валідацією, у логу є рядки `Handling ...` та `Request ... failed ... ValidationException`, а рядків самого обробника (`Handler: ...`) **немає**: це доводить, що обробник не виконувався. У логи не записуються секрети.
+
+## Тести
+
+```bash
+dotnet test Services/Feedback/Feedback.Tests
+```
+
+Тести виконуються **без запущеної MongoDB**:
+- **Domain:** створення відгуку з `Rating = 10` кидає `DomainException`, рівність Value Objects за значенням, обмеження на коментарі;
+- **Application:** pipeline відхиляє некоректні команди, обробник при цьому не викликається; усі помилки збираються разом; асинхронний валідатор дублікатів; конфлікт версій;
+- **Infrastructure:** BSON-відображення (camelCase, приватні колекції, enum рядком, без внутрішніх полів .NET), повернення документа назад, читання документа у стилі Лаб. 01;
+- **WebApi:** конфігурація AutoMapper валідна, команди мапляться з контрактів.
 
 ## Політика дублювання даних
 
-Між базами немає зовнішніх ключів; знання про чужі сутності зберігаються як ідентифікатори й копії полів. Повна таблиця: [`docs/lab01-report.md`](docs/lab01-report.md), розділ 8.
+Між базами немає зовнішніх ключів. Повна таблиця для всіх баз: [docs/lab01-report.md](docs/lab01-report.md), розділ 8. Для сервісу «Відгуки»:
 
 | Поле | Де зберігається | Власник даних | Політика узгодженості |
 |---|---|---|---|
-| `WardrobeItems` (`Name`, `Slot`, `Layer`, теплота й діапазон температур із `ItemDetails`, `IsAvailable`, головне фото) | **Wardrobe**: оригінал | **Wardrobe** (`WardrobeEfDb`) | власник; усі зміни проходять через цей сервіс |
-| те саме | Recommendations: локальна копія `WardrobeItems` | Wardrobe | **копія для читання**, оновлюється подією від Wardrobe (Лаб. 08); у Лаб. 02 це імітує `PUT /api/wardrobe-items/{id}` |
-| `OutfitItems.ItemName`, `ImageUrl` | Recommendations | Wardrobe | **знімок** на момент створення образу, не оновлюється |
-| `WardrobeItems.OwnerUserId` | Wardrobe | Users (Recommendations) | лише посилання за Id, **без FK** |
-
-Поле `IsAvailable` («у пранні») належить **Wardrobe**; Recommendations лише читають його копію, тому подвійного запису (dual write) немає.
-
-## Docker
-
-Образ сервісу «Гардероб» збирається з **кореня репозиторію**:
-
-```bash
-docker build -f Services/Wardrobe/Wardrobe.Api/Dockerfile -t wardrobe-api .
-```
-
-Контейнер слухає порт 8080; рядок підключення передається змінною `ConnectionStrings__WardrobeDb`.
+| `outfitId` | `outfitFeedback` | Outfits (Recommendations) | лише посилання за Id, **без FK** |
+| `author.userId` | `outfitFeedback`, `discussions` | Users (Recommendations) | лише посилання за Id, без FK |
+| `author.displayName` | `outfitFeedback`, `discussions` | Users (Recommendations) | **копія для читання**, оновлюється подією (Лаб. 08) |
+| `itemSnapshot[]` (назва й слот речі) | `outfitFeedback` | Wardrobe та Recommendations | **знімок** на момент відгуку, не оновлюється |
+| `temperatureNote` | `outfitFeedback` | дані самого відгуку | знімок відчуттів користувача |
+| `UserProfiles.ColdSensitivity` | Recommendations | Recommendations | похідне значення: Відгуки лише публікують подію, перерахунок виконує власник |
 
 ## Перевірка роботи
 
 | # | Перевірка | Очікуваний результат |
 |---|---|---|
-| 1 | `GET /api/wardrobe-items?page=2&pageSize=5` | `totalCount` = кількість **усіх** записів, на сторінці 5 елементів |
-| 2 | `GET /api/wardrobe-items?ownerUserId=1&slot=Top&sortBy=name&sortDir=desc` | відфільтровано й відсортовано |
-| 3 | `POST /api/wardrobe-items` з порожнім `name` | **400** з переліком помилок по полях |
-| 4 | `POST` двічі з однаковими `ownerUserId` і `name` | перший **201** + `Location`, другий **409** |
-| 5 | `GET /api/wardrobe-items/999999` | **404** у форматі ProblemDetails |
-| 6 | `GET /api/wardrobe-items/1` та `GET /api/categories/10` | у лозі SQL: eager = **1** запит, explicit = **2** |
-| 7 | `POST /api/wardrobe-items/2/laundry` двічі | **200**, потім **409** |
-| 8 | перезапуск сервісу | сідінг **не дублює** дані (`totalCount` не зростає) |
-| 9 | `GET /api/users/1/laundry` | друга специфікація працює без змін репозиторію |
-| 10 | Aspire Dashboard | `sql`, `RecommendationsDb`, `WardrobeDb`, `recommendations-api`, `wardrobe-api` у статусі **Running** |
+| 1 | `dotnet list Services/Feedback/Feedback.Domain reference` | посилань на інші проєкти немає |
+| 2 | `POST /api/feedback` з `rating = 10` | **400**; у лозі `LoggingBehavior` обробника немає |
+| 3 | `POST /api/feedback` двічі для того самого `outfitId` і `authorUserId` | другий запит відхилено (**400** від валідатора або **409** від унікального індексу) |
+| 4 | `PUT /api/feedback/{id}` двічі з `If-Match: "0"` | перший **200**, другий **409** |
+| 5 | `GET /api/feedback/000000000000000000000000` | **404** |
+| 6 | `GET /api/feedback/not-an-object-id` | **400** |
+| 7 | `GET /api/feedback?search=светр` | повнотекстовий пошук повертає відгук |
+| 8 | Compass: колекція `outfitFeedback` | camelCase, вкладені `author` і `comments`, без внутрішніх полів .NET |
+| 9 | `db.outfitFeedback.getIndexes()` | створені індекси, а не лише `_id` |
+| 10 | перезапуск `feedback-api` | сідінг не дублює дані |
+| 11 | Aspire Dashboard | усі ресурси у статусі **Running** |
+| 12 | `dotnet test Services/Feedback/Feedback.Tests` | усі тести зелені |
 
 ## Робота з Git
 
-- Кожна лабораторна розробляється в **окремій гілці** (`lab-01`, `lab-02`, `lab-03`, ...), що відгалужується від попередньої; `main` містить лише початковий коміт.
+- Кожна лабораторна розробляється в **окремій гілці** (`lab-01`, `lab-02`, `lab-03`, `lab-04`, ...), що відгалужується від попередньої; `main` містить лише початковий коміт.
 - Усередині лаби завдання виконуються в гілках `feature/...` і зливаються в гілку лаби через **Pull Request** з описом змін.
-- Повідомлення комітів описують зміну (наприклад, `Wardrobe.Dal: generic repository, eager/explicit/M:N repositories, Unit of Work`).
 
-## Примітка про AutoMapper
+## Примітка про ліцензії MediatR і AutoMapper
 
-Починаючи з версії 15.0 AutoMapper розповсюджується за комерційною ліцензією з безкоштовною Community-редакцією (навчальне та некомерційне використання). Без ліцензійного ключа (`AutoMapper:LicenseKey` в `appsettings.json`) застосунок працює, але записує в лог повідомлення про відсутність ключа.
+MediatR 13+ і AutoMapper 15+ розповсюджуються компанією Lucky Penny Software за комерційною ліцензією з безкоштовною Community-редакцією (навчальне та некомерційне використання); обидва пакети покриває один ключ (`LuckyPenny:LicenseKey` в `appsettings.json`). Без ключа застосунок працює, але записує в лог повідомлення про відсутність ліцензії.
