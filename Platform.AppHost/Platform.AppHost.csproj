@@ -4,6 +4,8 @@
     <ProjectReference Include="..\Services\Recommendations\Recommendations.Api\Recommendations.Api.csproj" />
     <ProjectReference Include="..\Services\Wardrobe\Wardrobe.Api\Wardrobe.Api.csproj" />
     <ProjectReference Include="..\Services\Feedback\Feedback.WebApi\Feedback.WebApi.csproj" />
+    <ProjectReference Include="..\Platform.Aggregator\Platform.Aggregator.csproj" />
+    <ProjectReference Include="..\Platform.ApiGateway\Platform.ApiGateway.csproj" />
   </ItemGroup>
 
   <ItemGroup>

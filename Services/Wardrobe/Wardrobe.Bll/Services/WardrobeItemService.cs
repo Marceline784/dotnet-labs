@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Wardrobe.Bll.Common;
@@ -19,6 +20,9 @@ public sealed class WardrobeItemService(IUnitOfWork uow, IMapper mapper, ILogger
     : IWardrobeItemService
 {
     private const int MaxPageSize = 100;
+
+    // власні spans бізнес-операцій (підписка: AddSource("Wearcast.*") у ServiceDefaults)
+    private static readonly ActivitySource Source = new("Wearcast.Wardrobe");
 
     // ---------- читання ----------
 
@@ -64,6 +68,9 @@ public sealed class WardrobeItemService(IUnitOfWork uow, IMapper mapper, ILogger
 
     public async Task<WardrobeItemDetailsDto> CreateAsync(CreateWardrobeItemDto input, CancellationToken ct = default)
     {
+        using var activity = Source.StartActivity("CreateWardrobeItem");
+        activity?.SetTag("owner.user_id", input.OwnerUserId);
+
         var (slot, layer) = ParseSlotAndLayer(input.Slot, input.Layer);
         var name = input.Name.Trim();
 
@@ -77,6 +84,7 @@ public sealed class WardrobeItemService(IUnitOfWork uow, IMapper mapper, ILogger
         await uow.Items.AddAsync(item, ct);
         await uow.SaveChangesAsync(ct);                                      // єдиний збереження в кінці операції
 
+        activity?.SetTag("item.id", item.Id);
         logger.LogInformation("Wardrobe item {ItemId} created for user {OwnerUserId}", item.Id, item.OwnerUserId);
         return await GetByIdAsync(item.Id, ct);
     }

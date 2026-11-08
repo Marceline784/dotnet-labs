@@ -19,5 +19,8 @@
     <Project Path="Services/Wardrobe/Wardrobe.Dal/Wardrobe.Dal.csproj" />
     <Project Path="Services/Wardrobe/Wardrobe.Domain/Wardrobe.Domain.csproj" />
   </Folder>
+  <Project Path="Platform.Aggregator/Platform.Aggregator.csproj" />
+  <Project Path="Platform.ApiGateway/Platform.ApiGateway.csproj" />
   <Project Path="Platform.AppHost/Platform.AppHost.csproj" />
+  <Project Path="Platform.ServiceDefaults/Platform.ServiceDefaults.csproj" />
 </Solution>

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Diagnostics;
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Recommendations.Bll.Dtos;
@@ -20,6 +21,9 @@ public sealed class RecommendationService(
     private const int NoRepeatDays = 3;      // як за замовчуванням у usp_AddOutfit
     private const int MaxDaysAhead = 7;
 
+    // власні spans бізнес-операцій (підписка: AddSource("Wearcast.*") у ServiceDefaults)
+    private static readonly ActivitySource Source = new("Wearcast.Recommendations");
+
     /// <summary>
     /// ТРАНЗАКЦІЙНА бізнес-операція кількох репозиторіїв:
     /// Recommendations (рекомендація + знімок погоди) -> WardrobeItems (відбір речей) -> Outfits (образи + позиції + історія).
@@ -27,6 +31,9 @@ public sealed class RecommendationService(
     /// </summary>
     public async Task<RecommendationDto> CreateAsync(CreateRecommendationDto input, CancellationToken ct = default)
     {
+        using var activity = Source.StartActivity("CreateRecommendation");
+        activity?.SetTag("user.id", input.UserId);
+
         var date = ResolveDate(input.Date);
 
         var user = await uow.Users.GetByIdAsync(input.UserId, ct)
@@ -74,6 +81,7 @@ public sealed class RecommendationService(
             throw;
         }
 
+        activity?.SetTag("recommendation.id", recommendationId);
         logger.LogInformation("Recommendation {RecommendationId} created for user {UserId}", recommendationId, user.Id);
         return await GetAsync(recommendationId, ct);
     }

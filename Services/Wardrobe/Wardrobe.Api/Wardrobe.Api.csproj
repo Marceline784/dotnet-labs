@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Wardrobe.Bll\Wardrobe.Bll.csproj" />
+    <ProjectReference Include="..\..\..\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>

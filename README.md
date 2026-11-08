@@ -6,7 +6,8 @@
 |---|---|---|---|---|
 | **Recommendations** | 02 | три шари, ADO.NET + Dapper | SQL Server `OutfitRecommendationsDb` | [docs/recommendations-service.md](docs/recommendations-service.md) |
 | **Wardrobe** | 03 | три шари, EF Core (Code First), специфікації | SQL Server `WardrobeEfDb` | [docs/wardrobe-service.md](docs/wardrobe-service.md) |
-| **Feedback** | **04** | **Clean Architecture + CQRS (MediatR)** | **MongoDB `outfitFeedbackDb`** | **цей документ** |
+| **Feedback** | 04 | Clean Architecture + CQRS (MediatR) | MongoDB `outfitFeedbackDb` | [розділ нижче](#сервіс-відгуки-clean-architecture) |
+| **Gateway + Aggregator** | **05** | **YARP, .NET Aspire, Serilog, OpenTelemetry** | **—** | **[docs/lab05-platform.md](docs/lab05-platform.md)** |
 
 Дані між сервісами не діляться: немає спільних таблиць і зовнішніх ключів між базами, посилання лише за ідентифікатором. Проєктування баз і контекстів: [docs/lab01-report.md](docs/lab01-report.md).
 
@@ -26,7 +27,8 @@
 12. [Тести](#тести)
 13. [Політика дублювання даних](#політика-дублювання-даних)
 14. [Перевірка роботи](#перевірка-роботи)
-15. [Робота з Git](#робота-з-git)
+15. [Платформа: Gateway, Aggregator, спостережуваність (Лаб. 05)](#платформа-gateway-aggregator-спостережуваність-лаб-05)
+16. [Робота з Git](#робота-з-git)
 
 ---
 
@@ -37,6 +39,9 @@
 ├── README.md
 ├── Platform.slnx                       одне рішення на всю платформу
 ├── Platform.AppHost/                   оркестрація .NET Aspire (AppHost.cs)
+├── Platform.ServiceDefaults/           Лаб. 05: Serilog, OpenTelemetry, CorrelationId, health checks
+├── Platform.ApiGateway/                Лаб. 05: YARP, єдина точка входу (порт 5000)
+├── Platform.Aggregator/                Лаб. 05: агрегація даних трьох сервісів
 ├── Services/
 │   ├── Recommendations/                Лаб. 02 (Api, Bll, Dal, Domain)
 │   ├── Wardrobe/                       Лаб. 03 (Api, Bll, Dal, Domain)
@@ -62,19 +67,24 @@
 
 ## Запуск через Aspire
 
-Одна команда піднімає SQL Server, MongoDB і всі три сервіси:
+Одна команда піднімає SQL Server, MongoDB, три сервіси, Aggregator і Gateway. Перед першим запуском (одноразово) задай паролі контейнерів:
+
+```bash
+dotnet user-secrets set "Parameters:sql-password" "Wearcast_Pass123!" --project Platform.AppHost
+dotnet user-secrets set "Parameters:mongo-password" "WearcastMongo123" --project Platform.AppHost
+```
 
 ```bash
 dotnet run --project Platform.AppHost
 ```
 
 1. У консолі з'явиться посилання на **Aspire Dashboard** (`https://localhost:17xxx/login?t=...`).
-2. Ресурси `sql`, `RecommendationsDb`, `WardrobeDb`, `mongo`, `FeedbackDb`, `recommendations-api`, `wardrobe-api` і `feedback-api` мають перейти в статус **Running**.
+2. Ресурси `sql`, `RecommendationsDb`, `WardrobeDb`, `mongo`, `FeedbackDb`, `recommendations-api`, `wardrobe-api`, `feedback-api`, `aggregator` і `gateway` мають перейти в статус **Running**.
 3. У колонці **Endpoints** рядка `feedback-api` клікни адресу й допиши `/swagger`.
 
 Ім'я ресурсу бази в `AppHost.cs` (`FeedbackDb`) збігається з іменем рядка підключення, яке читає сервіс (`ConnectionStrings:FeedbackDb`), тому Aspire передає його змінною оточення, а код сервісу змінювати не треба. Індекси та початкові дані сервіс «Відгуки» створює **сам** під час старту.
 
-**Compass.** MongoDB у контейнері відкрита на фіксованому порту **27018**. Пароль адміністратора: Dashboard → ресурс `mongo` → змінна `MONGO_INITDB_ROOT_PASSWORD`. Рядок підключення:
+**Compass.** MongoDB у контейнері відкрита на фіксованому порту **27018**. Пароль адміністратора: секрет AppHost `Parameters:mongo-password` (`dotnet user-secrets list --project Platform.AppHost`). Рядок підключення:
 
 ```text
 mongodb://admin:<пароль>@localhost:27018/?authSource=admin
@@ -355,6 +365,37 @@ dotnet test Services/Feedback/Feedback.Tests
 | 10 | перезапуск `feedback-api` | сідінг не дублює дані |
 | 11 | Aspire Dashboard | усі ресурси у статусі **Running** |
 | 12 | `dotnet test Services/Feedback/Feedback.Tests` | усі тести зелені |
+
+## Платформа: Gateway, Aggregator, спостережуваність (Лаб. 05)
+
+Клієнт звертається лише до **Gateway** (`http://localhost:5000`, YARP); сервіси знаходять один одного за логічними іменами (`recommendations-api`, `wardrobe-api`, `feedback-api`) через service discovery Aspire. **Aggregator** (`GET /api/aggregator/recommendations/{id}/full`) паралельно (`Task.WhenAll`) збирає рекомендацію, речі гардероба й відгуки; якщо `wardrobe-api` або `feedback-api` недоступні, відповідь **200** містить доступні дані й масив `warnings`.
+
+`Platform.ServiceDefaults` дає всім сервісам однакові Serilog (JSON у консоль + OTLP у Structured logs), OpenTelemetry (ASP.NET Core, HttpClient, SqlClient, MongoDB) і наскрізний `X-Correlation-Id` (створюється в Gateway, передається Aggregator-ом далі). Паролі SQL Server і MongoDB лежать у user-secrets AppHost, дані зберігаються у Docker volume.
+
+**Адреса Gateway:** `http://localhost:5000`. Приклади запитів (усі відповіді містять заголовок `X-Correlation-Id`):
+
+```bash
+# через Gateway до кожного сервісу
+curl -i http://localhost:5000/api/users                              # recommendations-api
+curl -i "http://localhost:5000/api/wardrobe-items?page=1&pageSize=3" # wardrobe-api
+curl -i "http://localhost:5000/api/feedback?pageSize=3"              # feedback-api
+
+# запис через Gateway: створити рекомендацію для користувача 1
+curl -i -X POST http://localhost:5000/api/recommendations \
+  -H "Content-Type: application/json" -d '{"userId":1,"outfitCount":3}'
+
+# Aggregator: повна картка рекомендації (рекомендація + речі + відгуки + warnings)
+curl -i http://localhost:5000/api/aggregator/recommendations/1/full
+
+# власний CorrelationId клієнта зберігається
+curl -i -H "X-Correlation-Id: demo-123" http://localhost:5000/api/categories
+```
+
+Усі ці запити виконує `bash scripts/lab05-smoke.sh`. Без інтернету для погоди: змінна оточення `Weather__Provider=Fake` у `recommendations-api`.
+
+**Часткова відмова:** у Dashboard зупини `feedback-api` (або `wardrobe-api`) і повтори запит до Aggregator: відповідь **200**, у `warnings` є `feedback-api is unavailable`. Зупинка `recommendations-api` дає **503**.
+
+Маршрути, що дивитись у Dashboard і сценарій відмови: [docs/lab05-platform.md](docs/lab05-platform.md).
 
 ## Робота з Git
 

@@ -7,6 +7,7 @@ using Recommendations.Dal;
 using Recommendations.Dal.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults();   // Лаб. 05: Serilog, OpenTelemetry, health checks, service discovery, CorrelationId
 
 // ---- Підключення до БД: з appsettings.json, перевизначається змінною оточення ConnectionStrings__RecommendationsDb
 //      (саме так передає рядок підключення .NET Aspire, коли ім'я ресурсу в AppHost збігається з цим) ----
@@ -59,6 +60,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+app.MapDefaultEndpoints();      // Лаб. 05: /health і /alive
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseExceptionHandler();   // винятки -> ProblemDetails (DomainExceptionHandler)

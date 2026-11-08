@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Feedback.Application\Feedback.Application.csproj" />
     <ProjectReference Include="..\Feedback.Infrastructure\Feedback.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -6,13 +6,7 @@ using Feedback.WebApi.Middleware;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// ---- Serilog: структуровані логи (CorrelationId, RequestPath, результат кожного запиту MediatR) ----
-builder.Host.UseSerilog((ctx, cfg) => cfg
-    .ReadFrom.Configuration(ctx.Configuration)
-    .Enrich.FromLogContext()
-    .WriteTo.Console(outputTemplate:
-        "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}"));
+builder.AddServiceDefaults();   // Лаб. 05: Serilog, OpenTelemetry, health checks, service discovery, CorrelationId
 
 // ---- Кожен шар надає власний метод розширення ----
 builder.Services
@@ -39,6 +33,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+app.MapDefaultEndpoints();      // Лаб. 05: /health і /alive
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseSerilogRequestLogging();     // один структурований запис на запит

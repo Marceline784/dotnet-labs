@@ -1,7 +1,6 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using Serilog.Events;
 using Wardrobe.Api.Infrastructure;
 using Wardrobe.Bll.Mapping;
 using Wardrobe.Bll.Services;
@@ -11,14 +10,7 @@ using Wardrobe.Dal.Interfaces;
 using Wardrobe.Dal.Seeding;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// ---- Serilog: структуровані логи (властивості CorrelationId, RequestPath, SourceContext...) ----
-builder.Host.UseSerilog((ctx, cfg) => cfg
-    .ReadFrom.Configuration(ctx.Configuration)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Information) // SQL-запити EF Core
-    .Enrich.FromLogContext()
-    .WriteTo.Console(outputTemplate:
-        "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}"));
+builder.AddServiceDefaults();   // Лаб. 05: Serilog, OpenTelemetry, health checks, service discovery, CorrelationId
 
 // ---- База даних: рядок підключення з appsettings.json, перевизначається змінною ConnectionStrings__WardrobeDb
 //      (її передає .NET Aspire, якщо ім'я ресурсу в AppHost збігається) ----
@@ -57,6 +49,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+app.MapDefaultEndpoints();      // Лаб. 05: /health і /alive
 
 // ---- Міграції та сідінг при старті (сідінг вимикається в production або Database:Seed = false) ----
 using (var scope = app.Services.CreateScope())

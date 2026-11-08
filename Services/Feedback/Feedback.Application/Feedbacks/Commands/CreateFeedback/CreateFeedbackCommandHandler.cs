@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Feedback.Application.Common.Validation;
 using Feedback.Application.Feedbacks.Commands;
 using Feedback.Domain.Entities;
@@ -11,8 +12,15 @@ namespace Feedback.Application.Feedbacks.Commands.CreateFeedback;
 public class CreateFeedbackCommandHandler(IFeedbackRepository repository, ILogger<CreateFeedbackCommandHandler> logger)
     : IRequestHandler<CreateFeedbackCommand, string>
 {
+    // власні spans бізнес-операцій (підписка: AddSource("Wearcast.*") у ServiceDefaults)
+    private static readonly ActivitySource Source = new("Wearcast.Feedback");
+
     public async Task<string> Handle(CreateFeedbackCommand cmd, CancellationToken ct)
     {
+        using var activity = Source.StartActivity("CreateFeedback");
+        activity?.SetTag("outfit.id", cmd.OutfitId);
+        activity?.SetTag("author.user_id", cmd.AuthorUserId);
+
         logger.LogInformation("Handler: creating feedback for outfit {OutfitId} by user {UserId}", cmd.OutfitId, cmd.AuthorUserId);
 
         var author = new Author(cmd.AuthorUserId, cmd.AuthorName);
@@ -29,6 +37,7 @@ public class CreateFeedbackCommandHandler(IFeedbackRepository repository, ILogge
                 feedback.AddPhoto(photo);
 
         await repository.AddAsync(feedback, ct);
+        activity?.SetTag("feedback.id", feedback.Id.ToString());
         return feedback.Id.ToString();
     }
 }

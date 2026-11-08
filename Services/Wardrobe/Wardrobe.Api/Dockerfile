@@ -2,6 +2,7 @@
 #   docker build -f Services/Wardrobe/Wardrobe.Api/Dockerfile -t wardrobe-api .
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
+COPY Platform.ServiceDefaults/ Platform.ServiceDefaults/
 COPY Services/Wardrobe/ Services/Wardrobe/
 RUN dotnet restore Services/Wardrobe/Wardrobe.Api/Wardrobe.Api.csproj
 RUN dotnet publish Services/Wardrobe/Wardrobe.Api/Wardrobe.Api.csproj -c Release -o /app/publish --no-restore
