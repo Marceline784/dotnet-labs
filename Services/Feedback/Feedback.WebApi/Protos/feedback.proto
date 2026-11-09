@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Wearcast.Contracts.Feedback";
+package feedback;
+
+// Читання відгуків для внутрішніх сервісів (Aggregator)
+service FeedbackService {
+  // Відгуки на кілька образів за один виклик
+  rpc GetByOutfits (GetFeedbackByOutfitsRequest) returns (FeedbackListReply);
+}
+
+message GetFeedbackByOutfitsRequest { repeated int64 outfit_ids = 1; }
+
+message FeedbackReply {
+  string id = 1;
+  int64 outfit_id = 2;
+  int64 author_user_id = 3;
+  string author_name = 4;
+  string feeling = 5;
+  optional int32 rating = 6;
+  optional string text = 7;
+  int32 comments_count = 8;
+  int32 version = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+message FeedbackListReply { repeated FeedbackReply items = 1; }

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Feedback.Domain\Feedback.Domain.csproj" />
@@ -18,5 +18,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Abstractions" Version="10.*" />
+    <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.*" />
+  </ItemGroup>
 
 </Project>

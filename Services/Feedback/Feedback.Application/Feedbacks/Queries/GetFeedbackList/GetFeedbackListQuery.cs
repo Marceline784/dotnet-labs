@@ -1,3 +1,4 @@
+using Feedback.Application.Caching;
 using Feedback.Application.Common.Interfaces;
 using Feedback.Application.Common.Models;
 using Feedback.Application.Feedbacks.Dtos;
@@ -11,4 +12,8 @@ public record GetFeedbackListQuery(
     string? Feeling = null,
     string? Search = null,
     int Page = 1,
-    int PageSize = 20) : IQuery<PagedResult<FeedbackDto>>;
+    int PageSize = 20) : IQuery<PagedResult<FeedbackDto>>, ICacheableQuery
+{
+    public string CacheKey => $"list:{OutfitId}:{AuthorUserId}:{Feeling}:{Search}:{Page}:{PageSize}";
+    public TimeSpan Ttl => TimeSpan.FromMinutes(2);     // списки змінюються частіше
+}

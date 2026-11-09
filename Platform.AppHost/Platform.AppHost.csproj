@@ -23,4 +23,9 @@
     <UserSecretsId>91c6e02d-0582-41ce-98da-c4bf7a2970dd</UserSecretsId>
   </PropertyGroup>
 
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Redis" Version="13.*" />
+  </ItemGroup>
+
 </Project>

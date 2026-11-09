@@ -8,6 +8,7 @@
 | **Wardrobe** | 03 | три шари, EF Core (Code First), специфікації | SQL Server `WardrobeEfDb` | [docs/wardrobe-service.md](docs/wardrobe-service.md) |
 | **Feedback** | 04 | Clean Architecture + CQRS (MediatR) | MongoDB `outfitFeedbackDb` | [розділ нижче](#сервіс-відгуки-clean-architecture) |
 | **Gateway + Aggregator** | **05** | **YARP, .NET Aspire, Serilog, OpenTelemetry** | **—** | **[docs/lab05-platform.md](docs/lab05-platform.md)** |
+| **Кеш + gRPC** | **06** | **IMemoryCache + Redis (L1/L2), gRPC, Aggregator на gRPC** | **Redis** | **[docs/lab06-grpc-cache.md](docs/lab06-grpc-cache.md)** |
 
 Дані між сервісами не діляться: немає спільних таблиць і зовнішніх ключів між базами, посилання лише за ідентифікатором. Проєктування баз і контекстів: [docs/lab01-report.md](docs/lab01-report.md).
 

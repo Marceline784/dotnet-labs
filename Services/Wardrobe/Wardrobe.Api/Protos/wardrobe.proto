@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Wearcast.Contracts.Wardrobe";
+package wardrobe;
+
+// Читання речей гардероба для внутрішніх сервісів (Aggregator)
+service WardrobeService {
+  // Одна річ; NotFound, якщо її немає
+  rpc GetItem (GetItemRequest) returns (ItemReply);
+  // Кілька речей за один виклик; відсутні пропускаються
+  rpc GetItemsByIds (GetItemsByIdsRequest) returns (ItemsReply);
+}
+
+message GetItemRequest { int64 id = 1; }
+message GetItemsByIdsRequest { repeated int64 ids = 1; }
+
+message ItemDetailReply {
+  uint32 warmth = 1;
+  int32 min_temp = 2;
+  int32 max_temp = 3;
+  uint32 water_resistance = 4;
+  bool is_windproof = 5;
+  optional string material = 6;
+  optional string color = 7;
+  optional string notes = 8;
+}
+
+message ItemImageReply {
+  int64 id = 1;
+  string url = 2;
+  bool is_primary = 3;
+  int32 sort_order = 4;
+}
+
+message CategoryRefReply {
+  int64 id = 1;
+  string name = 2;
+  google.protobuf.Timestamp added_at = 3;
+}
+
+message ItemReply {
+  int64 id = 1;
+  int64 owner_user_id = 2;
+  string name = 3;
+  string slot = 4;
+  string layer = 5;
+  bool is_available = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  ItemDetailReply detail = 9;
+  repeated ItemImageReply images = 10;
+  repeated CategoryRefReply categories = 11;
+}
+
+message ItemsReply { repeated ItemReply items = 1; }

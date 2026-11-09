@@ -1,3 +1,4 @@
+using Feedback.Application.Caching;
 using Feedback.Application.Common.Interfaces;
 using Feedback.Application.Feedbacks.Commands;
 
@@ -13,4 +14,4 @@ public record UpdateFeedbackCommand(
     int? Rating = null,
     string? Text = null,
     TemperatureNoteInput? TemperatureNote = null,
-    int? ExpectedVersion = null) : ICommand<int>;
+    int? ExpectedVersion = null) : ICommand<int>, ICacheInvalidatingCommand;
