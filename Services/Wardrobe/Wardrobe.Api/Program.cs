@@ -1,7 +1,9 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Wardrobe.Api.GrpcServices;
 using Wardrobe.Api.Infrastructure;
+using Wardrobe.Bll.Caching;
 using Wardrobe.Bll.Mapping;
 using Wardrobe.Bll.Services;
 using Wardrobe.Bll.Validators;
@@ -26,8 +28,9 @@ builder.Services.AddDbContext<WardrobeDbContext>(options =>
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // ---- BLL ----
-builder.Services.AddScoped<IWardrobeItemService, WardrobeItemService>();
-builder.Services.AddScoped<ICategoryService, CategoryService>();
+// Лаб. 06: кеш L1 (IMemoryCache) + L2 (Redis); IWardrobeItemService і ICategoryService відкриваються через кешуючі декоратори
+builder.AddWardrobeCaching();
+builder.Services.AddWardrobeGrpc();
 builder.Services.AddAutoMapper(cfg =>
 {
     cfg.LicenseKey = builder.Configuration["AutoMapper:LicenseKey"];
@@ -74,6 +77,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+app.MapWardrobeGrpc();      // Лаб. 06: gRPC-ендпоінти (HTTP/2 через https)
 app.Run();
 
 // потрібно для інтеграційних тестів (WebApplicationFactory<Program>)

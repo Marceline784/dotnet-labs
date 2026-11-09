@@ -1,6 +1,8 @@
 using Feedback.Application;
+using Feedback.Application.Caching;
 using Feedback.Infrastructure;
 using Feedback.WebApi.ErrorHandling;
+using Feedback.WebApi.GrpcServices;
 using Feedback.WebApi.Mapping;
 using Feedback.WebApi.Middleware;
 using Serilog;
@@ -12,6 +14,9 @@ builder.AddServiceDefaults();   // Лаб. 05: Serilog, OpenTelemetry, health ch
 builder.Services
     .AddApplication(builder.Configuration)          // MediatR, Pipeline Behaviors, валідатори
     .AddInfrastructure(builder.Configuration);      // MongoDB: контекст, BSON-мапінг, репозиторії, індекси, сідінг
+
+builder.AddFeedbackCaching();            // Лаб. 06: L1 (IMemoryCache) + L2 (Redis) + CachingBehavior (після AddApplication)
+builder.Services.AddFeedbackGrpc();      // Лаб. 06
 
 builder.Services.AddAutoMapper(cfg =>
 {
@@ -47,6 +52,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+app.MapFeedbackGrpc();      // Лаб. 06: gRPC-ендпоінти
 app.Run();
 
 // потрібно для інтеграційних тестів (WebApplicationFactory<Program>)

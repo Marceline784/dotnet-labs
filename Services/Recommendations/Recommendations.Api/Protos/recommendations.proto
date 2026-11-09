@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Wearcast.Contracts.Recommendations";
+package recommendations;
+
+// Читання рекомендацій для внутрішніх сервісів (Aggregator)
+service RecommendationsService {
+  // NotFound, якщо рекомендації немає
+  rpc GetRecommendation (GetRecommendationRequest) returns (RecommendationReply);
+}
+
+message GetRecommendationRequest { int64 id = 1; }
+
+message WeatherReply {
+  string city = 1;
+  double temp_min = 2;
+  double temp_max = 3;
+  double feels_like_min = 4;
+  double feels_like_max = 5;
+  uint32 precip_probability = 6;
+  double wind_speed_ms = 7;
+  optional double uv_index = 8;
+  string condition = 9;
+}
+
+message OutfitItemReply {
+  int64 wardrobe_item_id = 1;
+  string slot_code = 2;
+  string layer = 3;
+  string item_name = 4;
+  optional string image_url = 5;
+  bool is_removable = 6;
+}
+
+message OutfitReply {
+  int64 id = 1;
+  int64 recommendation_id = 2;
+  uint32 carousel_position = 3;
+  double fit_score = 4;
+  string status = 5;
+  repeated OutfitItemReply items = 6;
+}
+
+message RecommendationReply {
+  int64 id = 1;
+  int64 user_id = 2;
+  google.protobuf.Timestamp for_date = 3;
+  google.protobuf.Timestamp created_at = 4;
+  WeatherReply weather = 5;
+  repeated OutfitReply outfits = 6;
+}

@@ -1,3 +1,4 @@
+using Recommendations.Api.GrpcServices;
 using Recommendations.Api.Infrastructure;
 using Recommendations.Bll.Generation;
 using Recommendations.Bll.Mapping;
@@ -45,6 +46,8 @@ builder.Services.AddAutoMapper(cfg =>
     cfg.AddProfile<MappingProfile>();
 });
 
+builder.Services.AddRecommendationsGrpc();   // Лаб. 06
+
 // ---- Web API: тонкі контролери; помилки у форматі ProblemDetails (RFC 9457) ----
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ctx =>
@@ -73,6 +76,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+app.MapRecommendationsGrpc();   // Лаб. 06: gRPC-ендпоінти
 app.Run();
 
 // потрібно для інтеграційних тестів (WebApplicationFactory<Program>)

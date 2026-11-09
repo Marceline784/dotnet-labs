@@ -29,6 +29,9 @@ var mongo = builder.AddMongoDB("mongo", port: 27018, password: mongoPassword).Wi
 // Індекси й початкові дані сервіс створює сам при старті (IndexCreationService, DataSeedingService).
 var feedbackDb = mongo.AddDatabase("FeedbackDb", "outfitFeedbackDb");
 
+// ---- Лаб. 06: Redis (розподілений кеш, L2) з volume: кеш переживає перезапуск ----
+var redis = builder.AddRedis("redis").WithDataVolume();
+
 // Контейнер стартує порожнім: для «Рекомендацій» застосовуємо скрипти з Лаб. 01 (db/p1).
 // Скрипти ідемпотентні; обробник виконується, коли SQL Server готовий приймати з'єднання.
 var scriptsDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "db", "p1"));
@@ -65,15 +68,18 @@ var recommendations = builder.AddProject<Projects.Recommendations_Api>("recommen
 
 var wardrobe = builder.AddProject<Projects.Wardrobe_Api>("wardrobe-api")
     .WithReference(wardrobeDb)
-    .WaitFor(wardrobeDb);
+    .WaitFor(wardrobeDb)
+    .WithReference(redis).WaitFor(redis);
 
 var feedback = builder.AddProject<Projects.Feedback_WebApi>("feedback-api")
     .WithReference(feedbackDb)
-    .WaitFor(feedbackDb);
+    .WaitFor(feedbackDb)
+    .WithReference(redis).WaitFor(redis);
 
 // ---- Лаб. 05: Aggregator опитує сервіси за логічними іменами (service discovery) ----
 var aggregator = builder.AddProject<Projects.Platform_Aggregator>("aggregator")
     .WithReference(recommendations).WithReference(wardrobe).WithReference(feedback)
+    .WithReference(redis).WaitFor(redis)
     .WaitFor(recommendations).WaitFor(wardrobe).WaitFor(feedback);
 
 // ---- Лаб. 05: Gateway (YARP): єдина точка входу на фіксованому порту 5000 ----

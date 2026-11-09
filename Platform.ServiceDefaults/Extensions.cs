@@ -90,7 +90,10 @@ public static class Extensions
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation()
-                .AddMeter("Wearcast.*"))
+                .AddMeter("Wearcast.*")
+                .AddMeter("Wearcast.Wardrobe.Cache")      // Лаб. 06: метрики кешу cache.hits / cache.misses (L1/L2)
+                .AddMeter("Wearcast.Feedback.Cache")
+                .AddMeter("Wearcast.Aggregator.Cache"))
             .WithTracing(t =>
             {
                 if (!isDev) // у Development 100 %, у Production відсоток із Telemetry:SamplingRatio
